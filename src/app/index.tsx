@@ -1,98 +1,91 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { SplashScreenView } from '@/features/splash/SplashScreenView';
+import { OnboardingScreenView } from '@/features/onboarding/OnboardingScreenView';
+import { SignUpFlow } from '@/features/auth/SignUpFlow';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+type AppScreen = 'splash' | 'onboarding' | 'signup';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+export default function AppEntry() {
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>('splash');
+
+  const handleSplashFinish = () => {
+    setCurrentScreen('onboarding');
+  };
+
+  const handleOnboardingProceed = () => {
+    setCurrentScreen('signup');
+  };
+
+  const handleBackToOnboarding = () => {
+    setCurrentScreen('onboarding');
+  };
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <View style={styles.container}>
+      {currentScreen === 'splash' && (
+        <SplashScreenView onFinish={handleSplashFinish} />
+      )}
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+      {currentScreen === 'onboarding' && (
+        <OnboardingScreenView
+          onGetStarted={handleOnboardingProceed}
+          onSkip={handleOnboardingProceed}
+        />
+      )}
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+      {currentScreen === 'signup' && (
+        <SignUpFlow
+          onBackToOnboarding={handleBackToOnboarding}
+          onComplete={() => setCurrentScreen('onboarding')}
+        />
+      )}
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+      {/* Dev helper pill for fast UI inspection */}
+      {__DEV__ && (
+        <View style={styles.devBar}>
+          <TouchableOpacity
+            style={styles.devButton}
+            onPress={() => {
+              if (currentScreen === 'splash') setCurrentScreen('onboarding');
+              else if (currentScreen === 'onboarding') setCurrentScreen('signup');
+              else setCurrentScreen('splash');
+            }}>
+            <Text style={styles.devButtonText}>
+              {currentScreen === 'splash' && 'Next: Onboarding ➔'}
+              {currentScreen === 'onboarding' && 'Next: Sign Up ➔'}
+              {currentScreen === 'signup' && '↺ Replay Splash'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    backgroundColor: '#FAFAFA',
   },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+  devBar: {
+    position: 'absolute',
+    bottom: 8,
+    right: 12,
+    zIndex: 999,
+    opacity: 0.65,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+  devButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  devButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
