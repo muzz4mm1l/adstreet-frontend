@@ -9,7 +9,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { ScreenStatusBar } from '@/components/navigation/ScreenStatusBar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   FadeInDown,
@@ -152,11 +152,14 @@ export const OnboardingScreenView: React.FC<OnboardingScreenViewProps> = ({
   };
 
   return (
+    // Hardware back steps to the previous slide. No edge-swipe here: it would fight the
+    // pager's own horizontal swipe, which already handles going back a slide.
     <SwipeBackContainer
       onBack={currentSlideIndex > 0 ? handleBack : undefined}
-      enabled={currentSlideIndex > 0}>
+      enabled={currentSlideIndex > 0}
+      gestureEnabled={false}>
       <GradientBackground style={styles.container}>
-        <StatusBar style="light" />
+        <ScreenStatusBar style="light" />
 
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         {/* Top Header: Segmented Progress & Skip */}

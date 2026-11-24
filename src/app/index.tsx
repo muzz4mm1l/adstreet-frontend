@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { SplashScreenView } from '@/features/splash/SplashScreenView';
@@ -24,6 +24,12 @@ export default function AppEntry() {
   const [isSplashMounted, setIsSplashMounted] = useState(initialScreen === 'splash');
   const [isSplashMerging, setIsSplashMerging] = useState(false);
   const [hasCompletedSplash, setHasCompletedSplash] = useState(initialScreen !== 'splash');
+  // Set when we arrive at sign-up by sliding Home away (back): the slide already played, so the
+  // sign-up screen must not run its own entrance animation on top of it.
+  const [signupInstantEntry, setSignupInstantEntry] = useState(false);
+  useEffect(() => {
+    if (currentScreen !== 'signup') setSignupInstantEntry(false);
+  }, [currentScreen]);
 
   const handleSplashTransitionStart = () => {
     setIsSplashMerging(true);
@@ -42,6 +48,11 @@ export default function AppEntry() {
 
   const handleBackToOnboarding = () => {
     setCurrentScreen('onboarding');
+  };
+
+  const handleBackToSignup = () => {
+    setSignupInstantEntry(true);
+    setCurrentScreen('signup');
   };
 
   const handleReplaySplash = () => {
@@ -76,22 +87,33 @@ export default function AppEntry() {
 
       {/* 3. Sign Up & Login Flow (Opens directly to Log in screen after Onboarding) */}
       {currentScreen === 'signup' && (
-        <SignUpFlow
-          initialStep={initialSignUpStep}
-          onBackToOnboarding={handleBackToOnboarding}
-          onComplete={() => setCurrentScreen('home')}
-          onLoginSuccess={() => setCurrentScreen('home')}
-        />
+        <View style={StyleSheet.absoluteFill}>
+          <SignUpFlow
+            initialStep={initialSignUpStep}
+            instantEntry={signupInstantEntry}
+            onBackToOnboarding={handleBackToOnboarding}
+            // revealed underneath while the first step slides away (swipe / hardware back)
+            renderPreviousScreen={() => <OnboardingScreenView animateEntrance={false} />}
+            onComplete={() => setCurrentScreen('home')}
+            onLoginSuccess={() => setCurrentScreen('home')}
+          />
+        </View>
       )}
 
       {/* 4. Home Screen */}
       {currentScreen === 'home' && (
-        <HomeScreenView
-          onBack={() => setCurrentScreen('signup')}
-          onSelectCategory={(cat) => {
-            console.log('Selected category:', cat.name);
-          }}
-        />
+        <View style={StyleSheet.absoluteFill}>
+          <HomeScreenView
+            onBack={handleBackToSignup}
+            renderPreviousScreen={() => (
+              <SignUpFlow initialStep={initialSignUpStep} instantEntry />
+            )}
+            onLogout={() => setCurrentScreen('signup')}
+            onSelectCategory={(cat) => {
+              console.log('Selected category:', cat.name);
+            }}
+          />
+        </View>
       )}
 
       {/* Dev helper pill for fast UI inspection */}

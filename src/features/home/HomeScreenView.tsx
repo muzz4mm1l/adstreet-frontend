@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,13 @@ import {
   Dimensions,
   Platform,
   TouchableOpacity,
+  Alert,
+  FlatList,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  useWindowDimensions,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { ScreenStatusBar } from '@/components/navigation/ScreenStatusBar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -18,11 +23,47 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { HapticPressable } from '@/components/ui/HapticPressable';
 import { SwipeBackContainer } from '@/components/navigation/SwipeBackContainer';
+import { HomeMenu, HomeMenuItem } from './HomeMenu';
+import { BannerCarousel } from './BannerCarousel';
 import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
 const CARD_WIDTH = (SCREEN_WIDTH - 20 * 2 - CARD_GAP) / 2;
+
+export interface HeaderBanner {
+  id: string;
+  source: any;
+  title: string;
+}
+
+export const HEADER_BANNERS: HeaderBanner[] = [
+  {
+    id: 'banner-1',
+    source: require('@/assets/images/banners/banner-1.webp'),
+    title: 'AdPro Services',
+  },
+  {
+    id: 'banner-2',
+    source: require('@/assets/images/banners/banner-2.webp'),
+    title: 'Axsonstech',
+  },
+  {
+    id: 'banner-3',
+    source: require('@/assets/images/banners/banner-3.webp'),
+    title: 'ProPakistani',
+  },
+  {
+    id: 'banner-4',
+    source: require('@/assets/images/banners/banner-4.webp'),
+    title: 'TownEvent',
+  },
+  {
+    id: 'banner-5',
+    source: require('@/assets/images/banners/banner-5.webp'),
+    title: 'Startup Pakistan',
+  },
+];
 
 export interface CategoryCardData {
   id: string;
@@ -91,6 +132,12 @@ interface HomeScreenViewProps {
   onOpenNotifications?: () => void;
   onSelectRegion?: () => void;
   onBack?: () => void;
+  /** Screen revealed underneath while Home slides away on back (hardware back / swipe). */
+  renderPreviousScreen?: () => React.ReactNode;
+  /** Settings / Account / Help & Support taps in the side menu. */
+  onMenuSelect?: (item: HomeMenuItem) => void;
+  /** Called after the user confirms "Log out" in the side menu. */
+  onLogout?: () => void;
 }
 
 export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
@@ -100,19 +147,47 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
   onOpenNotifications,
   onSelectRegion,
   onBack,
+  renderPreviousScreen,
+  onMenuSelect,
+  onLogout,
 }) => {
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<'home' | 'chat' | 'add' | 'notifications' | 'search'>('home');
-  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
 
+  const openMenu = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setMenuOpen(true);
+    onOpenMenu?.();
+  };
+  const handleMenuCategory = (id: string) => {
+    setMenuOpen(false);
+    const category = CATEGORIES.find((c) => c.id === id);
+    if (category) onSelectCategory?.(category);
+  };
+  const handleMenuItem = (item: HomeMenuItem) => {
+    setMenuOpen(false);
+    onMenuSelect?.(item);
+  };
+  const handleLogout = () => {
+    setMenuOpen(false);
+    // the system alert can't present while the drawer is still animating away
+    setTimeout(() => {
+      Alert.alert('Log out', 'Are you sure you want to log out?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log out', style: 'destructive', onPress: () => onLogout?.() },
+      ]);
+    }, 320);
+  };
+  const [activeTab, setActiveTab] = useState<'home' | 'chat' | 'add' | 'notifications' | 'search'>('home');
   const handleTabPress = (tab: 'home' | 'chat' | 'add' | 'notifications' | 'search') => {
     Haptics.selectionAsync().catch(() => {});
     setActiveTab(tab);
   };
 
+  // The container plays the back haptic. From another tab, back just returns to the Home tab
+  // (no screen change, so no slide); from the Home tab it leaves the screen.
   const handleBack = () => {
     if (activeTab !== 'home') {
-      Haptics.selectionAsync().catch(() => {});
       setActiveTab('home');
     } else {
       onBack?.();
@@ -223,9 +298,12 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
   };
 
   return (
-    <SwipeBackContainer onBack={handleBack}>
+    <SwipeBackContainer
+      onBack={handleBack}
+      backgroundColor={SurfaceColors.canvas}
+      renderPrevious={activeTab === 'home' && onBack ? renderPreviousScreen : undefined}>
       <View style={styles.rootContainer}>
-        <StatusBar style="light" />
+        <ScreenStatusBar style="light" />
 
       {/* Main Scrollable View */}
       <ScrollView
@@ -241,12 +319,21 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
           start={{ x: 0.2, y: 0 }}
           end={{ x: 0.8, y: 1 }}
           style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) }]}>
+          {/* soft light blooms give the flat crimson depth */}
+          <View pointerEvents="none" style={styles.glowClip}>
+            <View style={styles.glowTopRight} />
+            <View style={styles.glowBottomLeft} />
+          </View>
+
           {/* Top Bar: Menu, Brand Badge, Actions */}
           <View style={styles.topBar}>
             {/* Hamburger Button */}
             <TouchableOpacity
-              onPress={onOpenMenu}
+              onPress={openMenu}
               activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Open menu"
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               style={styles.iconButton}>
               <Ionicons name="menu" size={22} color="#FFFFFF" />
             </TouchableOpacity>
@@ -290,35 +377,8 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
             </View>
           </View>
 
-          {/* Region Selector */}
-          <View style={styles.regionSection}>
-            <Text style={styles.regionLabel}>Region Selector</Text>
-            <TouchableOpacity
-              onPress={onSelectRegion}
-              activeOpacity={0.8}
-              style={styles.regionPill}>
-              <Text style={styles.regionFlag}>🇵🇰</Text>
-              <Text style={styles.regionText}>Karachi, PK</Text>
-              <Ionicons name="chevron-down" size={12} color="#FFFFFF" style={{ marginStart: 4 }} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Hero Carousel Headline */}
-          <View style={styles.heroSection}>
-            <Text style={styles.heroTitle}>
-              Pakistan's First Industry Platform for Marketing & Advertising Professionals
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              One destination for jobs, Gurus, news, events, courses, and podcasts.
-            </Text>
-
-            {/* Pagination Pill & Dots */}
-            <View style={styles.carouselPagination}>
-              <View style={[styles.pageIndicator, activeHeroIndex === 0 && styles.activePagePill]} />
-              <View style={[styles.pageDot, activeHeroIndex === 1 && styles.activePagePill]} />
-              <View style={[styles.pageDot, activeHeroIndex === 2 && styles.activePagePill]} />
-            </View>
-          </View>
+          {/* Hero banner carousel: coverflow with parallax and timed progress pill */}
+          <BannerCarousel banners={HEADER_BANNERS} />
         </LinearGradient>
 
         {/* 2. Categories Section */}
@@ -437,6 +497,13 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
         </GlassSurface>
       </View>
     </View>
+    <HomeMenu
+      visible={menuOpen}
+      onClose={() => setMenuOpen(false)}
+      onSelectCategory={handleMenuCategory}
+      onSelectItem={handleMenuItem}
+      onLogout={handleLogout}
+    />
   </SwipeBackContainer>
   );
 };
@@ -450,10 +517,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   headerContainer: {
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
     paddingHorizontal: 20,
-    paddingBottom: 22,
+    paddingBottom: 20,
     ...Shadows.floatingBar,
   },
   topBar: {
@@ -538,77 +605,69 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: 'bold',
   },
-  regionSection: {
-    marginTop: 14,
-    alignItems: 'flex-start',
+  glowClip: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    overflow: 'hidden',
   },
-  regionLabel: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 10.5,
-    fontWeight: '500',
-    marginBottom: 4,
+  glowTopRight: {
+    position: 'absolute',
+    top: -70,
+    right: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
   },
-  regionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.22)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: Radii.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+  glowBottomLeft: {
+    position: 'absolute',
+    bottom: -90,
+    left: -70,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(0, 0, 0, 0.14)',
   },
-  regionFlag: {
-    fontSize: 13,
-    marginRight: 5,
-  },
-  regionText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  heroSection: {
+  bannerCarouselContainer: {
     marginTop: 18,
+    width: '100%',
   },
-  heroTitle: {
-    fontSize: 21,
-    lineHeight: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    fontFamily: Platform.select({
-      ios: 'Georgia',
-      android: 'serif',
-      default: 'serif',
-    }),
-    letterSpacing: -0.2,
+  bannerCardWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  heroSubtitle: {
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginTop: 6,
+  bannerImage: {
+    width: '100%',
+    height: '100%',
   },
   carouselPagination: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 12,
-    gap: 4,
+    justifyContent: 'center',
+    marginTop: 10,
+    gap: 6,
   },
-  activePagePill: {
-    width: 20,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
-  },
-  pageDot: {
+  paginationDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: 'rgba(255, 255, 255, 0.45)',
   },
-  pageIndicator: {
-    width: 20,
+  activePaginationPill: {
+    width: 22,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#FFFFFF',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
+import { ScreenStatusBar } from '@/components/navigation/ScreenStatusBar';
 import Animated, {
   FadeInRight,
   FadeInLeft,
@@ -20,7 +20,11 @@ import Animated, {
   FadeOutRight,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { SwipeBackContainer } from '@/components/navigation/SwipeBackContainer';
+import {
+  BackSource,
+  SwipeBackContainer,
+  SwipeBackHandle,
+} from '@/components/navigation/SwipeBackContainer';
 import { AuthBackground } from './AuthBackground';
 import { AuthHeader } from './AuthHeader';
 import { SignUp01View } from './SignUp01View';
@@ -50,7 +54,49 @@ interface SignUpFlowProps {
   onComplete?: () => void;
   onNavigateLogin?: () => void;
   onLoginSuccess?: () => void;
+  /** Screen shown underneath while the first step slides away (swipe / back button). */
+  renderPreviousScreen?: () => React.ReactNode;
+  /** Mount without the entrance animation (we arrived via a back slide that already played). */
+  instantEntry?: boolean;
 }
+
+/**
+ * The step that "back" returns to, or null when back leaves the flow.
+ * Single source of truth for the real back action AND the swipe-back preview.
+ */
+const getPreviousStep = (
+  step: SignUpStep,
+  loginEntrySource: 'onboarding' | 'step1' | 'flow',
+  otpSource: 'signup' | 'forgot_password'
+): SignUpStep | null => {
+  switch (step) {
+    case 12:
+      return 11;
+    case 11:
+      if (loginEntrySource === 'step1') return 1;
+      if (loginEntrySource === 'flow') return 5;
+      return null;
+    case 10:
+      return 9;
+    case 9:
+    case 8:
+      return 7;
+    case 7:
+    case 6:
+      return 5;
+    case 5:
+    case 4:
+      return 3;
+    case 3:
+      return otpSource === 'forgot_password' ? 12 : 2;
+    case 2:
+      return 1;
+    case 1:
+      return 11;
+    default:
+      return null;
+  }
+};
 
 export const SignUpFlow: React.FC<SignUpFlowProps> = ({
   initialStep = 11,
@@ -58,9 +104,15 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
   onComplete,
   onNavigateLogin,
   onLoginSuccess,
+  renderPreviousScreen,
+  instantEntry = false,
 }) => {
   const [step, setStep] = useState<SignUpStep>(initialStep);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
+  // True while a back slide already played: steps swap without their own enter/exit animation.
+  const [instant, setInstant] = useState(instantEntry);
+  const pendingBack = useRef(false);
+  const backRef = useRef<SwipeBackHandle>(null);
 
   // Form States (01-03, 05)
   const [phone, setPhone] = useState('');
@@ -99,41 +151,45 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
   const [loginEntrySource, setLoginEntrySource] = useState<'onboarding' | 'step1' | 'flow'>('onboarding');
 
   // Full Bidirectional Back Navigation with Synced Haptics
-  const handleBack = () => {
+  const performBack = () => {
     Keyboard.dismiss();
-    Haptics.selectionAsync().catch(() => {});
     setDirection('backward');
-
-    if (step === 12) setStep(11);
-    else if (step === 11) {
-      if (loginEntrySource === 'step1') {
-        setStep(1);
-      } else if (loginEntrySource === 'flow') {
-        setStep(5);
-      } else {
-        onBackToOnboarding?.();
-      }
+    const previous = getPreviousStep(step, loginEntrySource, otpSource);
+    if (previous !== null) {
+      setStep(previous);
+    } else if (onBackToOnboarding) {
+      onBackToOnboarding();
+    } else {
+      // nothing to go back to: keep normal transitions and slide the screen back in
+      setInstant(false);
+      backRef.current?.cancelBack();
     }
-    else if (step === 10) setStep(9);
-    else if (step === 9) setStep(7);
-    else if (step === 8) setStep(7);
-    else if (step === 7) setStep(5);
-    else if (step === 6) setStep(5);
-    else if (step === 5) setStep(3);
-    else if (step === 4) setStep(3);
-    else if (step === 3) {
-      if (otpSource === 'forgot_password') {
-        setStep(12);
-      } else {
-        setStep(2);
-      }
-    }
-    else if (step === 2) setStep(1);
-    else if (step === 1) {
-      setStep(11);
-    }
-    else onBackToOnboarding?.();
   };
+
+  // Called by the SwipeBackContainer (hardware back, header button, edge swipe). The haptic is
+  // played there. When `slid` is true the container already slid the screen away, so swap steps
+  // instantly: first render with animations off (so the departing step has no exit animation),
+  // then navigate in the effect below.
+  const handleBack = (_source: BackSource, slid = false) => {
+    if (slid) {
+      pendingBack.current = true;
+      setInstant(true);
+    } else {
+      performBack();
+    }
+  };
+
+  useEffect(() => {
+    if (instant && pendingBack.current) {
+      pendingBack.current = false;
+      performBack();
+    }
+  }, [instant]);
+
+  // Normal transitions come back as soon as a step change has been rendered.
+  useEffect(() => {
+    setInstant(false);
+  }, [step]);
 
   const advanceStep = (nextStep: SignUpStep) => {
     Keyboard.dismiss();
@@ -186,8 +242,21 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
     if (finalEmail.trim()) {
       setLoginEmail(finalEmail.trim());
     }
-    setLoginEntrySource('flow');
-    advanceStep(11); // Steps 6-10 commented out for now
+    completeSignUp(); // Steps 6-10 commented out for now
+  };
+
+  // Account created: go straight to Home (no detour through Log in).
+  const completeSignUp = () => {
+    Keyboard.dismiss();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    if (onComplete) {
+      onComplete();
+    } else if (onLoginSuccess) {
+      onLoginSuccess();
+    } else {
+      setLoginEntrySource('flow');
+      advanceStep(11); // standalone use without a parent: fall back to Log in
+    }
   };
 
   // Step 6: Skills & Services -> advances to Step 7 (Upload Portfolio)
@@ -259,28 +328,33 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
     setStep(11);
   };
 
-  // Symmetrical Bidirectional Motion (Strict Skill Standard)
-  const enteringAnimation =
-    direction === 'forward'
-      ? FadeInRight.duration(280)
-      : FadeInLeft.duration(280);
+  // One full screen (background, header, step body) for `step`. Used for the live screen and,
+  // with animations off, for the preview revealed underneath during a back slide.
+  // (`step` intentionally shadows the state variable so the step blocks below read this one.)
+  const renderShell = (step: SignUpStep, animate: boolean) => {
+    // Symmetrical Bidirectional Motion (Strict Skill Standard)
+    const enteringAnimation = !animate
+      ? undefined
+      : direction === 'forward'
+        ? FadeInRight.duration(280)
+        : FadeInLeft.duration(280);
 
-  const exitingAnimation =
-    direction === 'forward'
-      ? FadeOutLeft.duration(180)
-      : FadeOutRight.duration(180);
+    const exitingAnimation = !animate
+      ? undefined
+      : direction === 'forward'
+        ? FadeOutLeft.duration(180)
+        : FadeOutRight.duration(180);
 
-  return (
-    <SwipeBackContainer onBack={handleBack}>
+    return (
       <AuthBackground style={styles.container}>
-        <StatusBar style="dark" />
+        <ScreenStatusBar style="dark" />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardContainer}>
           {/* Header with Centered Logo & Symmetrical Back Button */}
-          <AuthHeader showBack={true} onBack={handleBack} />
+          <AuthHeader showBack={true} onBack={() => backRef.current?.goBack()} />
 
           {/* Scrollable Form Body with 60fps Bidirectional Transitions */}
           <ScrollView
@@ -387,8 +461,7 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
                     onContinue={handleStep5Continue}
                     onSkip={() => {
                       if (email.trim()) setLoginEmail(email.trim());
-                      setLoginEntrySource('flow');
-                      advanceStep(11);
+                      completeSignUp();
                     }}
                   />
                 </Animated.View>
@@ -529,26 +602,45 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
               )}
             </ScrollView>
           </KeyboardAvoidingView>
-
-        {/* Global Upload Portfolio Modal (Triggers on Step 7 & 9, commented out for now) */}
-        {/* <UploadPortfolioModal
-          visible={showUploadModal}
-          onClose={() => setShowUploadModal(false)}
-          onUpload={(attachments) => {
-            setPortfolioAttachments(attachments);
-            setShowUploadModal(false);
-            advanceStep(9);
-          }}
-        /> */}
-        {/* Social Authentication Coming Soon Modal */}
-        <ComingSoonModal
-          visible={socialModalProvider !== null}
-          provider={socialModalProvider}
-          onClose={() => setSocialModalProvider(null)}
-        />
       </SafeAreaView>
     </AuthBackground>
-  </SwipeBackContainer>
+    );
+  };
+
+  const previousStep = getPreviousStep(step, loginEntrySource, otpSource);
+
+  return (
+    <>
+      <SwipeBackContainer
+        ref={backRef}
+        onBack={handleBack}
+        resetKey={step}
+        renderPrevious={
+          previousStep !== null
+            ? () => renderShell(previousStep, false)
+            : renderPreviousScreen
+        }>
+        {renderShell(step, !instant)}
+      </SwipeBackContainer>
+
+      {/* Modals live outside the sliding container so the preview layer never duplicates them */}
+      {/* Global Upload Portfolio Modal (Triggers on Step 7 & 9, commented out for now) */}
+      {/* <UploadPortfolioModal
+        visible={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onUpload={(attachments) => {
+          setPortfolioAttachments(attachments);
+          setShowUploadModal(false);
+          advanceStep(9);
+        }}
+      /> */}
+      {/* Social Authentication Coming Soon Modal */}
+      <ComingSoonModal
+        visible={socialModalProvider !== null}
+        provider={socialModalProvider}
+        onClose={() => setSocialModalProvider(null)}
+      />
+    </>
   );
 };
 
