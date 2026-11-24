@@ -9,24 +9,29 @@ export type SocialProvider = 'google' | 'apple' | 'facebook';
 interface SocialButtonProps {
   provider: SocialProvider;
   onPress: () => void;
+  label?: string;
 }
 
-export const SocialButton: React.FC<SocialButtonProps> = ({ provider, onPress }) => {
+export const SocialButton: React.FC<SocialButtonProps> = ({
+  provider,
+  onPress,
+  label: customLabel,
+}) => {
   const getProviderConfig = () => {
     switch (provider) {
       case 'google':
         return {
-          label: 'Google',
+          label: customLabel || 'Continue with Google',
           icon: <FontAwesome5 name="google" size={17} color="#EA4335" />,
         };
       case 'apple':
         return {
-          label: 'Apple',
+          label: customLabel || 'Continue with Apple',
           icon: <FontAwesome5 name="apple" size={20} color="#000000" />,
         };
       case 'facebook':
         return {
-          label: 'Facebook',
+          label: customLabel || 'Continue with Facebook',
           icon: <FontAwesome name="facebook-square" size={20} color="#1877F2" />,
         };
     }

@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { HapticPressable } from '@/components/ui/HapticPressable';
+import { GradientButton } from '@/components/ui/GradientButton';
 import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
 
 interface SignUp12ViewProps {
@@ -37,9 +38,15 @@ export const SignUp12View: React.FC<SignUp12ViewProps> = ({
       {/* Email Input */}
       <View style={styles.formGroup}>
         <View style={styles.inputWrapper}>
+          <Ionicons
+            name="mail-outline"
+            size={18}
+            color="#94A3B8"
+            style={styles.leftInputIcon}
+          />
           <TextInput
-            style={styles.input}
-            placeholder="Email address"
+            style={[styles.input, styles.inputWithLeftIcon]}
+            placeholder="abc@gmail.com"
             placeholderTextColor={SurfaceColors.textMuted}
             value={email}
             onChangeText={onChangeEmail}
@@ -50,14 +57,13 @@ export const SignUp12View: React.FC<SignUp12ViewProps> = ({
         </View>
       </View>
 
-      {/* Send Code CTA */}
-      <HapticPressable
-        haptic="medium"
-        borderRadius={Radii.pill}
+      {/* Send Code CTA with Gradient & Arrow */}
+      <GradientButton
+        title="Send Code"
+        showArrow={true}
         onPress={handleSendCode}
-        style={styles.sendCodeButton}>
-        <Text style={styles.sendCodeButtonText}>Send Code</Text>
-      </HapticPressable>
+        style={styles.ctaButtonWrapper}
+      />
     </View>
   );
 };
@@ -97,6 +103,13 @@ const styles = StyleSheet.create({
   },
   inputWrapper: {
     width: '100%',
+    position: 'relative',
+  },
+  leftInputIcon: {
+    position: 'absolute',
+    left: 18,
+    top: 17,
+    zIndex: 2,
   },
   input: {
     height: 52,
@@ -109,18 +122,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 0, 0, 0.08)',
     ...Shadows.card,
   },
-  sendCodeButton: {
-    height: 52,
-    backgroundColor: BrandColors.primary,
-    borderRadius: Radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.buttonGlow,
+  inputWithLeftIcon: {
+    paddingStart: 46,
   },
-  sendCodeButtonText: {
-    color: SurfaceColors.textInverted,
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 0.2,
+  ctaButtonWrapper: {
+    width: '100%',
   },
 });

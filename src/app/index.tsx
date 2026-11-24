@@ -1,15 +1,38 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { SplashScreenView } from '@/features/splash/SplashScreenView';
 import { OnboardingScreenView } from '@/features/onboarding/OnboardingScreenView';
 import { SignUpFlow } from '@/features/auth/SignUpFlow';
+import { HomeScreenView } from '@/features/home/HomeScreenView';
 
-type AppScreen = 'splash' | 'onboarding' | 'signup';
+type AppScreen = 'splash' | 'onboarding' | 'signup' | 'home';
+const APP_SCREENS: readonly AppScreen[] = ['splash', 'onboarding', 'signup', 'home'];
 
 export default function AppEntry() {
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>('splash');
+  // Dev-only deep link for fast UI inspection and the screenshot harness: /?screen=signup&step=5
+  // (screen: splash | onboarding | signup | home, step: 1-12). Ignored outside __DEV__.
+  const params = useLocalSearchParams<{ screen?: string; step?: string }>();
+  const devScreen = __DEV__ ? APP_SCREENS.find((s) => s === params.screen) : undefined;
+  const devStep = __DEV__ ? Number(params.step) : NaN;
+  const initialScreen: AppScreen = devScreen ?? 'splash';
+  const initialSignUpStep = (
+    Number.isInteger(devStep) && devStep >= 1 && devStep <= 12 ? devStep : 11
+  ) as NonNullable<React.ComponentProps<typeof SignUpFlow>['initialStep']>;
+
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>(initialScreen);
+  const [isSplashMounted, setIsSplashMounted] = useState(initialScreen === 'splash');
+  const [isSplashMerging, setIsSplashMerging] = useState(false);
+  const [hasCompletedSplash, setHasCompletedSplash] = useState(initialScreen !== 'splash');
+
+  const handleSplashTransitionStart = () => {
+    setIsSplashMerging(true);
+  };
 
   const handleSplashFinish = () => {
+    setIsSplashMounted(false);
+    setIsSplashMerging(false);
+    setHasCompletedSplash(true);
     setCurrentScreen('onboarding');
   };
 
@@ -21,23 +44,53 @@ export default function AppEntry() {
     setCurrentScreen('onboarding');
   };
 
+  const handleReplaySplash = () => {
+    setHasCompletedSplash(false);
+    setIsSplashMerging(false);
+    setIsSplashMounted(true);
+    setCurrentScreen('splash');
+  };
+
   return (
     <View style={styles.container}>
-      {currentScreen === 'splash' && (
-        <SplashScreenView onFinish={handleSplashFinish} />
+      {/* 1. Base Onboarding Screen (Mounted during Splash for seamless zero-flicker background and blossom transition) */}
+      {(currentScreen === 'onboarding' || isSplashMounted) && (
+        <View style={StyleSheet.absoluteFill}>
+          <OnboardingScreenView
+            animateEntrance={!hasCompletedSplash}
+            active={currentScreen === 'onboarding' || isSplashMerging}
+            isSpinning={isSplashMerging}
+            onGetStarted={handleOnboardingProceed}
+            onSkip={handleOnboardingProceed}
+          />
+        </View>
       )}
 
-      {currentScreen === 'onboarding' && (
-        <OnboardingScreenView
-          onGetStarted={handleOnboardingProceed}
-          onSkip={handleOnboardingProceed}
+      {/* 2. Splash Screen Overlay (Crossfades & merges seamlessly into Onboarding) */}
+      {isSplashMounted && (
+        <SplashScreenView
+          onTransitionStart={handleSplashTransitionStart}
+          onFinish={handleSplashFinish}
         />
       )}
 
+      {/* 3. Sign Up & Login Flow (Opens directly to Log in screen after Onboarding) */}
       {currentScreen === 'signup' && (
         <SignUpFlow
+          initialStep={initialSignUpStep}
           onBackToOnboarding={handleBackToOnboarding}
-          onComplete={() => setCurrentScreen('onboarding')}
+          onComplete={() => setCurrentScreen('home')}
+          onLoginSuccess={() => setCurrentScreen('home')}
+        />
+      )}
+
+      {/* 4. Home Screen */}
+      {currentScreen === 'home' && (
+        <HomeScreenView
+          onBack={() => setCurrentScreen('signup')}
+          onSelectCategory={(cat) => {
+            console.log('Selected category:', cat.name);
+          }}
         />
       )}
 
@@ -45,16 +98,25 @@ export default function AppEntry() {
       {__DEV__ && (
         <View style={styles.devBar}>
           <TouchableOpacity
+            testID="dev-next"
+            accessibilityLabel="dev-next"
             style={styles.devButton}
             onPress={() => {
-              if (currentScreen === 'splash') setCurrentScreen('onboarding');
-              else if (currentScreen === 'onboarding') setCurrentScreen('signup');
-              else setCurrentScreen('splash');
+              if (currentScreen === 'splash') {
+                handleSplashFinish();
+              } else if (currentScreen === 'onboarding') {
+                setCurrentScreen('signup');
+              } else if (currentScreen === 'signup') {
+                setCurrentScreen('home');
+              } else {
+                handleReplaySplash();
+              }
             }}>
             <Text style={styles.devButtonText}>
               {currentScreen === 'splash' && 'Next: Onboarding ➔'}
-              {currentScreen === 'onboarding' && 'Next: Sign Up ➔'}
-              {currentScreen === 'signup' && '↺ Replay Splash'}
+              {currentScreen === 'onboarding' && 'Next: Log in ➔'}
+              {currentScreen === 'signup' && 'Next: Home ➔'}
+              {currentScreen === 'home' && '↺ Replay Flow'}
             </Text>
           </TouchableOpacity>
         </View>

@@ -10,7 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { SocialButton, SocialProvider } from './SocialButton';
-import { HapticPressable } from '@/components/ui/HapticPressable';
+import { GradientButton } from '@/components/ui/GradientButton';
 import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
 
 interface SignUp11ViewProps {
@@ -66,9 +66,15 @@ export const SignUp11View: React.FC<SignUp11ViewProps> = ({
       <View style={styles.formGroup}>
         {/* Email Input */}
         <View style={styles.inputWrapper}>
+          <Ionicons
+            name="mail-outline"
+            size={18}
+            color="#94A3B8"
+            style={styles.leftInputIcon}
+          />
           <TextInput
-            style={styles.input}
-            placeholder="Email address"
+            style={[styles.input, styles.inputWithLeftIcon]}
+            placeholder="abc@gmail.com"
             placeholderTextColor={SurfaceColors.textMuted}
             value={email}
             onChangeText={onChangeEmail}
@@ -80,6 +86,12 @@ export const SignUp11View: React.FC<SignUp11ViewProps> = ({
 
         {/* Password Input with Eye Toggle */}
         <View style={styles.inputWrapper}>
+          <Ionicons
+            name="lock-closed-outline"
+            size={18}
+            color="#94A3B8"
+            style={styles.leftInputIcon}
+          />
           <TextInput
             style={[styles.input, styles.passwordInput]}
             placeholder="Password"
@@ -107,11 +119,21 @@ export const SignUp11View: React.FC<SignUp11ViewProps> = ({
         <View style={styles.forgotPasswordRow}>
           <TouchableOpacity
             onPress={handleForgotPassword}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            activeOpacity={0.7}
+            hitSlop={{ top: 14, bottom: 14, left: 20, right: 14 }}
+            style={styles.forgotPasswordButton}>
             <Text style={styles.forgotPasswordText}>Forgot password?</Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Primary Sign In CTA with Red Gradient & Arrow */}
+      <GradientButton
+        title="Sign in"
+        showArrow={true}
+        onPress={handleSignIn}
+        style={styles.ctaButtonWrapper}
+      />
 
       {/* Divider */}
       <View style={styles.dividerRow}>
@@ -120,31 +142,23 @@ export const SignUp11View: React.FC<SignUp11ViewProps> = ({
         <View style={styles.dividerLine} />
       </View>
 
-      {/* Social Login Options */}
+      {/* Social Login Options (Apple removed) */}
       <View style={styles.socialGroup}>
         <SocialButton provider="google" onPress={() => onSocialLogin('google')} />
-        <SocialButton provider="apple" onPress={() => onSocialLogin('apple')} />
         <SocialButton
           provider="facebook"
           onPress={() => onSocialLogin('facebook')}
         />
       </View>
 
-      {/* Primary Sign In CTA */}
-      <HapticPressable
-        haptic="medium"
-        borderRadius={Radii.pill}
-        onPress={handleSignIn}
-        style={styles.signInButton}>
-        <Text style={styles.signInButtonText}>Sign in</Text>
-      </HapticPressable>
-
       {/* Don't have an account Link */}
       <View style={styles.footerRow}>
         <Text style={styles.footerText}>Don't have an account? </Text>
         <TouchableOpacity
           onPress={handleSignUp}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={{ paddingVertical: 6, paddingHorizontal: 4 }}>
           <Text style={styles.footerLink}>Sign up</Text>
         </TouchableOpacity>
       </View>
@@ -189,6 +203,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginBottom: 12,
   },
+  leftInputIcon: {
+    position: 'absolute',
+    left: 18,
+    top: 17,
+    zIndex: 2,
+  },
   input: {
     height: 52,
     backgroundColor: '#FFFFFF',
@@ -200,7 +220,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 0, 0, 0.08)',
     ...Shadows.card,
   },
+  inputWithLeftIcon: {
+    paddingStart: 46,
+  },
   passwordInput: {
+    paddingStart: 46,
     paddingEnd: 50,
   },
   eyeButton: {
@@ -210,19 +234,27 @@ const styles = StyleSheet.create({
   },
   forgotPasswordRow: {
     alignItems: 'flex-end',
-    marginTop: 2,
-    paddingEnd: 4,
+    marginTop: 4,
+    marginBottom: 4,
+    paddingEnd: 2,
+    zIndex: 20,
+    elevation: 5,
+  },
+  forgotPasswordButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    zIndex: 20,
   },
   forgotPasswordText: {
-    fontSize: 12,
-    color: SurfaceColors.textSecondary,
-    fontWeight: '500',
+    fontSize: 12.5,
+    color: '#ED1C24',
+    fontWeight: '600',
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 18,
+    marginVertical: 16,
   },
   dividerLine: {
     flex: 1,
@@ -237,20 +269,9 @@ const styles = StyleSheet.create({
   socialGroup: {
     marginBottom: 24,
   },
-  signInButton: {
-    height: 52,
-    backgroundColor: BrandColors.primary,
-    borderRadius: Radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    ...Shadows.buttonGlow,
-  },
-  signInButtonText: {
-    color: SurfaceColors.textInverted,
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 0.2,
+  ctaButtonWrapper: {
+    width: '100%',
+    marginBottom: 16,
   },
   footerRow: {
     flexDirection: 'row',

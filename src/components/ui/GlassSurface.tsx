@@ -49,12 +49,19 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
   useEffect(() => {
     let isMounted = true;
 
+    // react-native-web does not implement this API; guard so web never throws
+    if (typeof AccessibilityInfo.isReduceTransparencyEnabled !== 'function') {
+      return;
+    }
+
     // Check accessibility setting for reduced transparency
-    AccessibilityInfo.isReduceTransparencyEnabled().then((enabled) => {
-      if (isMounted) {
-        setReduceTransparency(enabled);
-      }
-    });
+    AccessibilityInfo.isReduceTransparencyEnabled()
+      .then((enabled) => {
+        if (isMounted) {
+          setReduceTransparency(enabled);
+        }
+      })
+      .catch(() => {});
 
     const subscription = AccessibilityInfo.addEventListener(
       'reduceTransparencyChanged',

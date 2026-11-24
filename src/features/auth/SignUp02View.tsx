@@ -8,23 +8,27 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { HapticPressable } from '@/components/ui/HapticPressable';
+import { GradientButton } from '@/components/ui/GradientButton';
 import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
 
 interface SignUp02ViewProps {
-  email: string;
-  onChangeEmail: (text: string) => void;
   password: string;
   onChangePassword: (text: string) => void;
   confirmPassword: string;
   onChangeConfirmPassword: (text: string) => void;
   onSubmit: () => void;
-  onLogin: () => void;
+  onLogin?: () => void;
 }
 
+/**
+ * Sign up 02 — Password & Confirm Password Screen
+ * Focused, high-taste layout modeled after SignUp12 (Forgot Password):
+ * 1. Title Section ("Create a password")
+ * 2. Form Inputs (Password, Confirm Password with eye toggles)
+ * 3. Primary CTA Button ("Continue")
+ * 4. Footer Navigation ("Already have an account? Log in")
+ */
 export const SignUp02View: React.FC<SignUp02ViewProps> = ({
-  email,
-  onChangeEmail,
   password,
   onChangePassword,
   confirmPassword,
@@ -42,38 +46,32 @@ export const SignUp02View: React.FC<SignUp02ViewProps> = ({
     <View style={styles.container}>
       {/* Editorial Titles */}
       <View style={styles.titleSection}>
-        <Text style={styles.heading}>Create an account</Text>
+        <Text style={styles.heading}>Create a password</Text>
         <Text style={styles.subtitle}>
-          To create an account provide details verify email{'\n'}and set a password
+          Set a password to secure your new account
         </Text>
       </View>
 
       {/* Inputs Group */}
       <View style={styles.formGroup}>
-        {/* Email Field */}
-        <View style={styles.inputWrapper}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email address"
-            placeholderTextColor={SurfaceColors.textMuted}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={email}
-            onChangeText={onChangeEmail}
-          />
-        </View>
-
         {/* Password Field */}
         <View style={styles.passwordWrapper}>
+          <Ionicons
+            name="lock-closed-outline"
+            size={18}
+            color="#94A3B8"
+            style={styles.leftInputIcon}
+          />
           <TextInput
             style={[styles.input, styles.passwordInput]}
             placeholder="Password"
             placeholderTextColor={SurfaceColors.textMuted}
             secureTextEntry={!showPassword}
             autoCapitalize="none"
+            autoCorrect={false}
             value={password}
             onChangeText={onChangePassword}
+            returnKeyType="next"
           />
           <TouchableOpacity
             style={styles.eyeButton}
@@ -82,7 +80,7 @@ export const SignUp02View: React.FC<SignUp02ViewProps> = ({
             onPress={() => setShowPassword((prev) => !prev)}>
             <Ionicons
               name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-              size={20}
+              size={18}
               color={SurfaceColors.textMuted}
             />
           </TouchableOpacity>
@@ -90,18 +88,27 @@ export const SignUp02View: React.FC<SignUp02ViewProps> = ({
 
         {/* Confirm Password Field */}
         <View style={styles.passwordWrapper}>
+          <Ionicons
+            name="lock-closed-outline"
+            size={18}
+            color="#94A3B8"
+            style={styles.leftInputIcon}
+          />
           <TextInput
             style={[
               styles.input,
               styles.passwordInput,
               isPasswordMismatch && styles.inputErrorBorder,
             ]}
-            placeholder="Confirm Password"
+            placeholder="Confirm password"
             placeholderTextColor={SurfaceColors.textMuted}
             secureTextEntry={!showConfirmPassword}
             autoCapitalize="none"
+            autoCorrect={false}
             value={confirmPassword}
             onChangeText={onChangeConfirmPassword}
+            returnKeyType="done"
+            onSubmitEditing={onSubmit}
           />
           <TouchableOpacity
             style={styles.eyeButton}
@@ -110,7 +117,7 @@ export const SignUp02View: React.FC<SignUp02ViewProps> = ({
             onPress={() => setShowConfirmPassword((prev) => !prev)}>
             <Ionicons
               name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
-              size={20}
+              size={18}
               color={SurfaceColors.textMuted}
             />
           </TouchableOpacity>
@@ -125,24 +132,25 @@ export const SignUp02View: React.FC<SignUp02ViewProps> = ({
         )}
       </View>
 
-      {/* Sign Up Primary CTA */}
-      <HapticPressable
-        haptic={isPasswordMismatch ? 'error' : 'medium'}
-        borderRadius={Radii.pill}
+      {/* Primary CTA with Gradient & Arrow */}
+      <GradientButton
+        title="Continue"
+        showArrow={true}
         onPress={onSubmit}
-        style={styles.submitButton}>
-        <Text style={styles.submitButtonText}>Sign Up</Text>
-      </HapticPressable>
+        style={styles.ctaButtonWrapper}
+      />
 
       {/* Footer Navigation */}
-      <View style={styles.footerRow}>
-        <Text style={styles.footerText}>Already have an account? </Text>
-        <TouchableOpacity
-          onPress={onLogin}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.loginLink}>Log in</Text>
-        </TouchableOpacity>
-      </View>
+      {onLogin && (
+        <View style={styles.footerRow}>
+          <Text style={styles.footerText}>Already have an account? </Text>
+          <TouchableOpacity
+            onPress={onLogin}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={styles.loginLink}>Log in</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -180,39 +188,44 @@ const styles = StyleSheet.create({
   formGroup: {
     marginBottom: 16,
   },
-  inputWrapper: {
-    marginBottom: 14,
-  },
   passwordWrapper: {
     position: 'relative',
-    marginBottom: 14,
+    marginBottom: 12,
+  },
+  leftInputIcon: {
+    position: 'absolute',
+    left: 18,
+    top: 17,
+    zIndex: 2,
   },
   input: {
-    height: 50,
-    backgroundColor: SurfaceColors.card,
+    height: 52,
+    backgroundColor: '#FFFFFF',
     borderRadius: Radii.pill,
     borderWidth: 1,
-    borderColor: SurfaceColors.borderLight,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
     paddingHorizontal: 20,
     fontSize: 14.5,
     color: SurfaceColors.textPrimary,
+    ...Shadows.card,
   },
   passwordInput: {
-    paddingRight: 48,
+    paddingStart: 46,
+    paddingEnd: 50,
   },
   inputErrorBorder: {
     borderColor: BrandColors.primary,
   },
   eyeButton: {
     position: 'absolute',
-    right: 16,
-    top: 15,
+    right: 18,
+    top: 17,
   },
   errorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    marginTop: -4,
+    marginTop: -2,
     marginBottom: 8,
     gap: 4,
   },
@@ -221,27 +234,16 @@ const styles = StyleSheet.create({
     color: BrandColors.primary,
     fontWeight: '500',
   },
-  submitButton: {
-    height: 52,
-    backgroundColor: BrandColors.primary,
-    borderRadius: Radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
+  ctaButtonWrapper: {
+    width: '100%',
+    marginTop: 8,
     marginBottom: 20,
-    ...Shadows.buttonGlow,
-  },
-  submitButtonText: {
-    color: SurfaceColors.textInverted,
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 0.2,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 4,
     paddingBottom: 24,
   },
   footerText: {
@@ -252,6 +254,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
     color: BrandColors.primary,
-    textDecorationLine: 'underline',
   },
 });

@@ -20,6 +20,7 @@ import Animated, {
   FadeOutRight,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { SwipeBackContainer } from '@/components/navigation/SwipeBackContainer';
 import { AuthBackground } from './AuthBackground';
 import { AuthHeader } from './AuthHeader';
 import { SignUp01View } from './SignUp01View';
@@ -34,6 +35,7 @@ import { SignUp09View } from './SignUp09View';
 import { SignUp10View, AppLanguage } from './SignUp10View';
 import { SignUp11View } from './SignUp11View';
 import { SignUp12View } from './SignUp12View';
+import { ComingSoonModal } from './ComingSoonModal';
 import {
   UploadPortfolioModal,
   PortfolioAttachment,
@@ -43,20 +45,25 @@ import { SocialProvider } from './SocialButton';
 type SignUpStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 interface SignUpFlowProps {
+  initialStep?: SignUpStep;
   onBackToOnboarding?: () => void;
   onComplete?: () => void;
   onNavigateLogin?: () => void;
+  onLoginSuccess?: () => void;
 }
 
 export const SignUpFlow: React.FC<SignUpFlowProps> = ({
+  initialStep = 11,
   onBackToOnboarding,
   onComplete,
   onNavigateLogin,
+  onLoginSuccess,
 }) => {
-  const [step, setStep] = useState<SignUpStep>(1);
+  const [step, setStep] = useState<SignUpStep>(initialStep);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
 
-  // Form States (01-03)
+  // Form States (01-03, 05)
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -82,11 +89,14 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
     },
   ]);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [socialModalProvider, setSocialModalProvider] = useState<SocialProvider | null>(null);
 
   // Language & Auth States (10-12)
   const [language, setLanguage] = useState<AppLanguage>('en');
   const [loginEmail, setLoginEmail] = useState('abc@gmail.com');
   const [forgotEmail, setForgotEmail] = useState('abc@gmail.com');
+  const [otpSource, setOtpSource] = useState<'signup' | 'forgot_password'>('signup');
+  const [loginEntrySource, setLoginEntrySource] = useState<'onboarding' | 'step1' | 'flow'>('onboarding');
 
   // Full Bidirectional Back Navigation with Synced Haptics
   const handleBack = () => {
@@ -95,16 +105,33 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
     setDirection('backward');
 
     if (step === 12) setStep(11);
-    else if (step === 11) setStep(1);
+    else if (step === 11) {
+      if (loginEntrySource === 'step1') {
+        setStep(1);
+      } else if (loginEntrySource === 'flow') {
+        setStep(5);
+      } else {
+        onBackToOnboarding?.();
+      }
+    }
     else if (step === 10) setStep(9);
     else if (step === 9) setStep(7);
     else if (step === 8) setStep(7);
-    else if (step === 7) setStep(6);
+    else if (step === 7) setStep(5);
     else if (step === 6) setStep(5);
-    else if (step === 5) setStep(4);
+    else if (step === 5) setStep(3);
     else if (step === 4) setStep(3);
-    else if (step === 3) setStep(2);
+    else if (step === 3) {
+      if (otpSource === 'forgot_password') {
+        setStep(12);
+      } else {
+        setStep(2);
+      }
+    }
     else if (step === 2) setStep(1);
+    else if (step === 1) {
+      setStep(11);
+    }
     else onBackToOnboarding?.();
   };
 
@@ -115,41 +142,37 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
     setStep(nextStep);
   };
 
-  // Step 1: Email
+  // Step 1: Create an account (Email only) -> advances to Step 2 (Password)
   const handleStep1Continue = () => {
-    if (!email.trim()) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      Alert.alert('Email Required', 'Please enter your email address to continue.');
-      return;
-    }
-    advanceStep(2);
+    advanceStep(2); // Direct to Step 2 (no input required for rapid testing)
   };
 
-  // Step 2: Password
+  // Step 2: Password & Confirm Password -> advances to Step 3 (OTP Verification)
   const handleStep2Submit = () => {
-    if (!password || !confirmPassword) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      Alert.alert('Password Required', 'Please enter and confirm your password.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      Alert.alert('Password Mismatch', 'Passwords do not match. Please verify.');
-      return;
-    }
-    advanceStep(3);
+    setOtpSource('signup');
+    advanceStep(3); // Advances to Step 3 OTP screen after entering password
   };
 
-  // Step 3: OTP Verification -> advances to Step 4 (Role Selection)
+  // Step 3: OTP Verification (Used in Create Account & Forgot Password)
   const handleVerifyOtp = () => {
-    const fullCode = otpCode.join('');
-    if (fullCode.length < 6) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      Alert.alert('Incomplete Code', 'Please enter all 6 digits of the verification code.');
-      return;
-    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    advanceStep(4);
+    if (otpSource === 'signup') {
+      advanceStep(5); // Advances to Step 5 (Profile Setup)
+    } else {
+      Alert.alert(
+        'Code Verified ✅',
+        'Your email has been verified. You can now log in.',
+        [
+          {
+            text: 'Continue to Log in',
+            onPress: () => {
+              setDirection('forward');
+              setStep(11);
+            },
+          },
+        ]
+      );
+    }
   };
 
   // Step 4: Role Selection -> advances to Step 5 (Profile Setup)
@@ -157,14 +180,14 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
     advanceStep(5);
   };
 
-  // Step 5: Profile Setup -> advances to Step 6 (Skills)
-  const handleStep5Continue = () => {
-    if (!fullName.trim()) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      Alert.alert('Name Required', 'Please enter your full name.');
-      return;
+  // Step 5: Profile Setup -> advances to Step 11 (Log In, Steps 6-10 bypassed for now)
+  const handleStep5Continue = (data?: { phone: string; email: string }) => {
+    const finalEmail = data?.email || email;
+    if (finalEmail.trim()) {
+      setLoginEmail(finalEmail.trim());
     }
-    advanceStep(6);
+    setLoginEntrySource('flow');
+    advanceStep(11); // Steps 6-10 commented out for now
   };
 
   // Step 6: Skills & Services -> advances to Step 7 (Upload Portfolio)
@@ -190,38 +213,25 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
 
   // Step 11: Sign In Action
   const handleSignIn = (enteredPassword: string) => {
-    if (!loginEmail.trim() || !enteredPassword) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(
-        () => {}
-      );
-      Alert.alert('Fields Required', 'Please enter your email and password.');
-      return;
-    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
       () => {}
     );
-    Alert.alert('Welcome Back! 👋', `Successfully signed in as ${loginEmail}`);
+    if (onLoginSuccess) {
+      onLoginSuccess();
+    } else if (onComplete) {
+      onComplete();
+    } else {
+      Alert.alert('Welcome Back! 👋', `Successfully signed in as ${loginEmail || 'user@adstreet.com'}`);
+    }
   };
 
-  // Step 12: Forgot Password Reset Code
+  // Step 12: Forgot Password Reset Code -> advances to Step 3 (OTP Verification)
   const handleSendResetCode = () => {
-    if (!forgotEmail.trim()) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(
-        () => {}
-      );
-      Alert.alert(
-        'Email Required',
-        'Please enter your registered email address.'
-      );
-      return;
-    }
+    setOtpSource('forgot_password');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
       () => {}
     );
-    Alert.alert(
-      'Reset Code Sent ✉️',
-      `A 6-digit password reset code has been sent to ${forgotEmail}.`
-    );
+    advanceStep(3); // Navigates to Step 3 OTP screen for password recovery
   };
 
   const handleAddSkill = (newSkill: string) => {
@@ -238,11 +248,15 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
 
   const handleSocialLogin = (provider: SocialProvider) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    Alert.alert('Social Authentication', `Signing in with ${provider}...`);
+    setSocialModalProvider(provider);
   };
 
   const handleLoginPress = () => {
-    advanceStep(11);
+    Keyboard.dismiss();
+    Haptics.selectionAsync().catch(() => {});
+    setLoginEntrySource('onboarding');
+    setDirection('backward');
+    setStep(11);
   };
 
   // Symmetrical Bidirectional Motion (Strict Skill Standard)
@@ -257,23 +271,23 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
       : FadeOutRight.duration(180);
 
   return (
-    <AuthBackground style={styles.container}>
-      <StatusBar style="dark" />
+    <SwipeBackContainer onBack={handleBack}>
+      <AuthBackground style={styles.container}>
+        <StatusBar style="dark" />
 
       <SafeAreaView style={styles.safeArea}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.keyboardContainer}>
-            {/* Header with Centered Logo & Symmetrical Back Button */}
-            <AuthHeader showBack={true} onBack={handleBack} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardContainer}>
+          {/* Header with Centered Logo & Symmetrical Back Button */}
+          <AuthHeader showBack={true} onBack={handleBack} />
 
-            {/* Scrollable Form Body with 60fps Bidirectional Transitions */}
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}>
-              {/* STEP 01 */}
+          {/* Scrollable Form Body with 60fps Bidirectional Transitions */}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}>
+              {/* STEP 01: Create an Account (Email Input & Sign Up CTA) */}
               {step === 1 && (
                 <Animated.View
                   key="step-1"
@@ -289,15 +303,13 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
                 </Animated.View>
               )}
 
-              {/* STEP 02 */}
+              {/* STEP 02: Password & Confirm Password (Dedicated screen) */}
               {step === 2 && (
                 <Animated.View
                   key="step-2"
                   entering={enteringAnimation}
                   exiting={exitingAnimation}>
                   <SignUp02View
-                    email={email}
-                    onChangeEmail={setEmail}
                     password={password}
                     onChangePassword={setPassword}
                     confirmPassword={confirmPassword}
@@ -308,35 +320,47 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
                 </Animated.View>
               )}
 
-              {/* STEP 03 */}
+              {/* STEP 03: OTP Verification (Used in Create Account & Forgot Password) */}
               {step === 3 && (
                 <Animated.View
                   key="step-3"
                   entering={enteringAnimation}
                   exiting={exitingAnimation}>
                   <SignUp03View
-                    email={email}
+                    email={
+                      otpSource === 'forgot_password'
+                        ? (forgotEmail || 'abc@gmail.com')
+                        : (email || 'abc@gmail.com')
+                    }
                     code={otpCode}
                     onChangeCode={setOtpCode}
                     onVerify={handleVerifyOtp}
                     onChangeEmail={() => {
                       Haptics.selectionAsync().catch(() => {});
                       setDirection('backward');
-                      setStep(1);
+                      if (otpSource === 'forgot_password') {
+                        setStep(12);
+                      } else {
+                        setStep(1);
+                      }
                     }}
                     onResend={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                       Alert.alert(
                         'Code Resent',
-                        `A new verification code was sent to ${email}`
+                        `A new verification code was sent to ${
+                          otpSource === 'forgot_password'
+                            ? (forgotEmail || 'your email')
+                            : (email || 'your email')
+                        }`
                       );
                     }}
                   />
                 </Animated.View>
               )}
 
-              {/* STEP 04: Role Selection */}
-              {step === 4 && (
+              {/* STEP 04: Role Selection (Commented out for now) */}
+              {/* {step === 4 && (
                 <Animated.View
                   key="step-4"
                   entering={enteringAnimation}
@@ -347,7 +371,7 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
                     onContinue={handleStep4Continue}
                   />
                 </Animated.View>
-              )}
+              )} */}
 
               {/* STEP 05: Profile Setup */}
               {step === 5 && (
@@ -356,20 +380,22 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
                   entering={enteringAnimation}
                   exiting={exitingAnimation}>
                   <SignUp05View
-                    fullName={fullName}
-                    onChangeFullName={setFullName}
-                    bio={bio}
-                    onChangeBio={setBio}
-                    location={location}
-                    onChangeLocation={setLocation}
+                    phone={phone}
+                    onChangePhone={setPhone}
+                    email={email}
+                    onChangeEmail={setEmail}
                     onContinue={handleStep5Continue}
-                    onSkip={() => advanceStep(6)}
+                    onSkip={() => {
+                      if (email.trim()) setLoginEmail(email.trim());
+                      setLoginEntrySource('flow');
+                      advanceStep(11);
+                    }}
                   />
                 </Animated.View>
               )}
 
-              {/* STEP 06: Skills & Services */}
-              {step === 6 && (
+              {/* STEP 06: Skills & Services (Commented out for now) */}
+              {/* {step === 6 && (
                 <Animated.View
                   key="step-6"
                   entering={enteringAnimation}
@@ -386,10 +412,10 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
                     onSkip={() => advanceStep(7)}
                   />
                 </Animated.View>
-              )}
+              )} */}
 
-              {/* STEP 07: Upload Portfolio (Empty State) */}
-              {step === 7 && (
+              {/* STEP 07: Upload Portfolio (Empty State) (Commented out for now) */}
+              {/* {step === 7 && (
                 <Animated.View
                   key="step-7"
                   entering={enteringAnimation}
@@ -403,10 +429,10 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
                     onSkip={handlePortfolioContinue}
                   />
                 </Animated.View>
-              )}
+              )} */}
 
-              {/* STEP 08: Upload Modal Preview Screen */}
-              {step === 8 && (
+              {/* STEP 08: Upload Modal Preview Screen (Commented out for now) */}
+              {/* {step === 8 && (
                 <Animated.View
                   key="step-8"
                   entering={enteringAnimation}
@@ -424,10 +450,10 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
                     onSkip={handlePortfolioContinue}
                   />
                 </Animated.View>
-              )}
+              )} */}
 
-              {/* STEP 09: Upload Portfolio (Populated State) */}
-              {step === 9 && (
+              {/* STEP 09: Upload Portfolio (Populated State) (Commented out for now) */}
+              {/* {step === 9 && (
                 <Animated.View
                   key="step-9"
                   entering={enteringAnimation}
@@ -449,10 +475,10 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
                     onSkip={handlePortfolioContinue}
                   />
                 </Animated.View>
-              )}
+              )} */}
 
-              {/* STEP 10: Language Selection */}
-              {step === 10 && (
+              {/* STEP 10: Language Selection (Commented out for now) */}
+              {/* {step === 10 && (
                 <Animated.View
                   key="step-10"
                   entering={enteringAnimation}
@@ -464,7 +490,7 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
                     onSkip={handleLanguageConfirm}
                   />
                 </Animated.View>
-              )}
+              )} */}
 
               {/* STEP 11: Log In */}
               {step === 11 && (
@@ -478,7 +504,9 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
                     onSignIn={handleSignIn}
                     onForgotPassword={() => advanceStep(12)}
                     onSignUp={() => {
-                      setDirection('backward');
+                      Keyboard.dismiss();
+                      Haptics.selectionAsync().catch(() => {});
+                      setDirection('forward');
                       setStep(1);
                     }}
                     onSocialLogin={handleSocialLogin}
@@ -501,10 +529,9 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
               )}
             </ScrollView>
           </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
 
-        {/* Global Upload Portfolio Modal (Triggers on Step 7 & 9) */}
-        <UploadPortfolioModal
+        {/* Global Upload Portfolio Modal (Triggers on Step 7 & 9, commented out for now) */}
+        {/* <UploadPortfolioModal
           visible={showUploadModal}
           onClose={() => setShowUploadModal(false)}
           onUpload={(attachments) => {
@@ -512,9 +539,16 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
             setShowUploadModal(false);
             advanceStep(9);
           }}
+        /> */}
+        {/* Social Authentication Coming Soon Modal */}
+        <ComingSoonModal
+          visible={socialModalProvider !== null}
+          provider={socialModalProvider}
+          onClose={() => setSocialModalProvider(null)}
         />
       </SafeAreaView>
     </AuthBackground>
+  </SwipeBackContainer>
   );
 };
 

@@ -1,13 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   Platform,
   TouchableOpacity,
+  useWindowDimensions,
 } from 'react-native';
 import { HapticPressable } from '@/components/ui/HapticPressable';
+import { GradientButton } from '@/components/ui/GradientButton';
+import { CodeSlots, CodeSlotsStatus } from '@/components/ui/CodeSlots';
 import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
 
 interface SignUp03ViewProps {
@@ -27,8 +29,17 @@ export const SignUp03View: React.FC<SignUp03ViewProps> = ({
   onChangeEmail,
   onResend,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
   const [secondsRemaining, setSecondsRemaining] = useState(45);
-  const inputRefs = useRef<Array<any>>([]);
+  const [status, setStatus] = useState<CodeSlotsStatus>('idle');
+
+  // Fully responsive slot size and spacing calibrated for all screen densities and zoom levels
+  const horizontalPadding = windowWidth < 360 ? 16 : 24;
+  const availableWidth = windowWidth - horizontalPadding * 2;
+  const responsiveGap = windowWidth < 360 ? 5 : windowWidth < 390 ? 6 : 7;
+  const hyphenAllowance = 14 + responsiveGap;
+  const totalWidthForSlots = availableWidth - (5 * responsiveGap + hyphenAllowance);
+  const responsiveSlotSize = Math.min(46, Math.max(38, Math.floor(totalWidthForSlots / 6)));
 
   // Resend code countdown timer
   useEffect(() => {
@@ -41,42 +52,35 @@ export const SignUp03View: React.FC<SignUp03ViewProps> = ({
     return () => clearInterval(timer);
   }, [secondsRemaining]);
 
-  const handleDigitChange = (text: string, index: number) => {
-    const cleanText = text.replace(/[^0-9]/g, '');
-    const newCode = [...code];
-
-    if (cleanText.length > 0) {
-      newCode[index] = cleanText[cleanText.length - 1];
-      onChangeCode(newCode);
-
-      // Auto-advance to next input cell
-      if (index < 5) {
-        inputRefs.current[index + 1]?.focus();
-      }
-    } else {
-      newCode[index] = '';
-      onChangeCode(newCode);
-    }
+  const handleCodeChange = (newCodeStr: string) => {
+    setStatus('idle');
+    const newCodeArr = Array.from({ length: 6 }, (_, i) => newCodeStr[i] ?? '');
+    onChangeCode(newCodeArr);
   };
 
-  const handleKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
+  const handleVerify = () => {
+    // Dummy OTP mode: accept any value without requiring authentication or 6-digit validation
+    setStatus('success');
+    // Allow the delightful success wash & checkmark animation to land before advancing
+    setTimeout(() => {
+      onVerify();
+    }, 400);
   };
 
   const handleResendPress = () => {
     if (secondsRemaining === 0) {
       setSecondsRemaining(45);
+      setStatus('idle');
+      onChangeCode(['', '', '', '', '', '']);
       onResend?.();
     }
   };
 
   const formattedTimer = `00:${secondsRemaining < 10 ? `0${secondsRemaining}` : secondsRemaining}`;
-  const isCodeComplete = code.every((digit) => digit.length === 1);
+  const isCodeComplete = code.filter(Boolean).length === 6;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingHorizontal: horizontalPadding }]}>
       {/* Title Section */}
       <View style={styles.titleSection}>
         <Text style={styles.heading}>6-digit code</Text>
@@ -86,54 +90,29 @@ export const SignUp03View: React.FC<SignUp03ViewProps> = ({
         </Text>
       </View>
 
-      {/* 6-Digit Code Input Cells: [ ] [ ] [ ] - [ ] [ ] [ ] */}
-      <View style={styles.otpRow}>
-        {/* First 3 Cells */}
-        <View style={styles.cellGroup}>
-          {[0, 1, 2].map((idx) => {
-            const isFilled = code[idx]?.length > 0;
-            return (
-              <TextInput
-                key={idx}
-                ref={(el) => {
-                  inputRefs.current[idx] = el;
-                }}
-                style={[styles.otpCell, isFilled && styles.otpCellFilled]}
-                keyboardType="number-pad"
-                maxLength={1}
-                value={code[idx]}
-                onChangeText={(text) => handleDigitChange(text, idx)}
-                onKeyPress={(e) => handleKeyPress(e, idx)}
-                selectTextOnFocus
-              />
-            );
-          })}
-        </View>
-
-        {/* Middle Hyphen */}
-        <Text style={styles.hyphen}>—</Text>
-
-        {/* Last 3 Cells */}
-        <View style={styles.cellGroup}>
-          {[3, 4, 5].map((idx) => {
-            const isFilled = code[idx]?.length > 0;
-            return (
-              <TextInput
-                key={idx}
-                ref={(el) => {
-                  inputRefs.current[idx] = el;
-                }}
-                style={[styles.otpCell, isFilled && styles.otpCellFilled]}
-                keyboardType="number-pad"
-                maxLength={1}
-                value={code[idx]}
-                onChangeText={(text) => handleDigitChange(text, idx)}
-                onKeyPress={(e) => handleKeyPress(e, idx)}
-                selectTextOnFocus
-              />
-            );
-          })}
-        </View>
+      {/* React Bits CodeSlots Animated Component */}
+      <View style={styles.codeSlotsWrapper}>
+        <CodeSlots
+          length={6}
+          splitIndex={3}
+          value={code.join('')}
+          status={status}
+          onChange={handleCodeChange}
+          onComplete={handleVerify}
+          autoFocus={true}
+          accentColor={BrandColors.primary}
+          inkColor={BrandColors.primary}
+          slotColor={SurfaceColors.card}
+          digitColor={SurfaceColors.textPrimary}
+          dangerColor={BrandColors.primary}
+          slotSize={responsiveSlotSize}
+          gap={responsiveGap}
+          radius={Radii.md}
+          bounce={0.2}
+          settle={0.3}
+          rise={8}
+          cascade={20}
+        />
       </View>
 
       {/* Resend Code Timer */}
@@ -151,14 +130,13 @@ export const SignUp03View: React.FC<SignUp03ViewProps> = ({
         )}
       </View>
 
-      {/* Verify Primary CTA */}
-      <HapticPressable
-        haptic={isCodeComplete ? 'success' : 'medium'}
-        borderRadius={Radii.pill}
-        onPress={onVerify}
-        style={styles.verifyButton}>
-        <Text style={styles.verifyButtonText}>Verify</Text>
-      </HapticPressable>
+      {/* Verify Primary CTA with Gradient & Arrow */}
+      <GradientButton
+        title="Verify"
+        showArrow={true}
+        onPress={handleVerify}
+        style={styles.ctaButtonWrapper}
+      />
 
       {/* Change Email Action */}
       <View style={styles.changeEmailSection}>
@@ -208,44 +186,10 @@ const styles = StyleSheet.create({
     color: SurfaceColors.textPrimary,
     fontWeight: '600',
   },
-  otpRow: {
-    flexDirection: 'row',
+  codeSlotsWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
-    gap: 8,
-  },
-  cellGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  otpCell: {
-    width: 44,
-    height: 52,
-    backgroundColor: SurfaceColors.card,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: SurfaceColors.borderLight,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: '600',
-    color: SurfaceColors.textPrimary,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  otpCellFilled: {
-    borderColor: BrandColors.primary,
-    backgroundColor: '#FFFFFF',
-  },
-  hyphen: {
-    fontSize: 18,
-    fontWeight: '300',
-    color: SurfaceColors.textMuted,
-    marginHorizontal: 4,
+    marginBottom: 28,
   },
   resendSection: {
     alignItems: 'center',
@@ -267,20 +211,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textDecorationLine: 'underline',
   },
-  verifyButton: {
-    height: 52,
-    backgroundColor: BrandColors.primary,
-    borderRadius: Radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
+  ctaButtonWrapper: {
+    width: '100%',
     marginBottom: 16,
-    ...Shadows.buttonGlow,
-  },
-  verifyButtonText: {
-    color: SurfaceColors.textInverted,
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 0.2,
   },
   changeEmailSection: {
     alignItems: 'center',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { SocialButton, SocialProvider } from './SocialButton';
-import { HapticPressable } from '@/components/ui/HapticPressable';
+import { GradientButton } from '@/components/ui/GradientButton';
 import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
 
 interface SignUp01ViewProps {
@@ -19,29 +21,74 @@ interface SignUp01ViewProps {
   onSocialLogin?: (provider: SocialProvider) => void;
 }
 
+/**
+ * Sign up 01 — Create an account
+ * Clean, high-taste layout per /mobile-taste and /build-adstreet-screen:
+ * 1. Title & Subtitle
+ * 2. Form Input field (Email address only)
+ * 3. Primary Sign Up CTA (placed directly below Email address)
+ * 4. Divider ("or")
+ * 5. Social Providers (Google, Apple, Facebook)
+ * 6. Footer Navigation ("Already have an account? Log in")
+ */
 export const SignUp01View: React.FC<SignUp01ViewProps> = ({
   email,
   onChangeEmail,
   onContinue,
   onLogin,
-  onSocialLogin = () => { },
+  onSocialLogin = () => {},
 }) => {
+  const handleSignUp = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    onContinue();
+  };
+
+  const handleLogin = () => {
+    Haptics.selectionAsync().catch(() => {});
+    onLogin();
+  };
+
   return (
     <View style={styles.container}>
-      {/* Editorial Titles */}
+      {/* Title Section */}
       <View style={styles.titleSection}>
         <Text style={styles.heading}>Create an account</Text>
         <Text style={styles.subtitle}>
-          To create an account provide details verify email{'\n'}and set a password
+          To create an account provide details verify email and set a password
         </Text>
       </View>
 
-      {/* Social Providers */}
-      <View style={styles.socialGroup}>
-        <SocialButton provider="google" onPress={() => onSocialLogin('google')} />
-        <SocialButton provider="apple" onPress={() => onSocialLogin('apple')} />
-        <SocialButton provider="facebook" onPress={() => onSocialLogin('facebook')} />
+      {/* Input Field: Email address */}
+      <View style={styles.formGroup}>
+        <View style={styles.inputWrapper}>
+          <Ionicons
+            name="mail-outline"
+            size={18}
+            color="#94A3B8"
+            style={styles.leftInputIcon}
+          />
+          <TextInput
+            style={[styles.input, styles.inputWithLeftIcon]}
+            placeholder="abc@gmail.com"
+            placeholderTextColor={SurfaceColors.textMuted}
+            value={email}
+            onChangeText={onChangeEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoCorrect={false}
+            returnKeyType="done"
+            onSubmitEditing={handleSignUp}
+          />
+        </View>
       </View>
+
+      {/* Primary Sign Up CTA with Gradient & Arrow */}
+      <GradientButton
+        title="Sign Up"
+        showArrow={true}
+        onPress={handleSignUp}
+        style={styles.ctaButtonWrapper}
+      />
 
       {/* Divider */}
       <View style={styles.dividerRow}>
@@ -50,38 +97,24 @@ export const SignUp01View: React.FC<SignUp01ViewProps> = ({
         <View style={styles.dividerLine} />
       </View>
 
-      {/* Email Input */}
-      <View style={styles.inputWrapper}>
-        <TextInput
-          style={styles.input}
-          placeholder="Email address"
-          placeholderTextColor={SurfaceColors.textMuted}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={email}
-          onChangeText={onChangeEmail}
-          returnKeyType="next"
-          onSubmitEditing={onContinue}
+      {/* Social Login Options (Apple removed) */}
+      <View style={styles.socialGroup}>
+        <SocialButton provider="google" onPress={() => onSocialLogin('google')} />
+        <SocialButton
+          provider="facebook"
+          onPress={() => onSocialLogin('facebook')}
         />
       </View>
 
-      {/* Sign Up Primary CTA */}
-      <HapticPressable
-        haptic="medium"
-        borderRadius={Radii.pill}
-        onPress={onContinue}
-        style={styles.submitButton}>
-        <Text style={styles.submitButtonText}>Sign Up</Text>
-      </HapticPressable>
-
-      {/* Footer Navigation */}
+      {/* Already have an account Link */}
       <View style={styles.footerRow}>
         <Text style={styles.footerText}>Already have an account? </Text>
         <TouchableOpacity
-          onPress={onLogin}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.loginLink}>Log in</Text>
+          onPress={handleLogin}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={{ paddingVertical: 6, paddingHorizontal: 4 }}>
+          <Text style={styles.footerLink}>Log in</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -95,7 +128,7 @@ const styles = StyleSheet.create({
   },
   titleSection: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
   },
   heading: {
     fontSize: 24,
@@ -118,14 +151,38 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 16,
   },
-  socialGroup: {
-    marginBottom: 8,
+  formGroup: {
+    marginBottom: 16,
+  },
+  inputWrapper: {
+    width: '100%',
+    position: 'relative',
+  },
+  leftInputIcon: {
+    position: 'absolute',
+    left: 18,
+    top: 17,
+    zIndex: 2,
+  },
+  input: {
+    height: 52,
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radii.pill,
+    paddingHorizontal: 20,
+    fontSize: 14.5,
+    color: SurfaceColors.textPrimary,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    ...Shadows.card,
+  },
+  inputWithLeftIcon: {
+    paddingStart: 46,
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 14,
-    paddingHorizontal: 12,
+    justifyContent: 'center',
+    marginVertical: 18,
   },
   dividerLine: {
     flex: 1,
@@ -133,55 +190,29 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.08)',
   },
   dividerText: {
-    marginHorizontal: 12,
+    marginHorizontal: 14,
     fontSize: 12,
     color: SurfaceColors.textMuted,
-    fontWeight: '500',
   },
-  inputWrapper: {
-    marginBottom: 16,
+  socialGroup: {
+    marginBottom: 24,
   },
-  input: {
-    height: 50,
-    backgroundColor: SurfaceColors.card,
-    borderRadius: Radii.pill,
-    borderWidth: 1,
-    borderColor: SurfaceColors.borderLight,
-    paddingHorizontal: 20,
-    fontSize: 14.5,
-    color: SurfaceColors.textPrimary,
-  },
-  submitButton: {
-    height: 52,
-    backgroundColor: BrandColors.primary,
-    borderRadius: Radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
+  ctaButtonWrapper: {
+    width: '100%',
     marginBottom: 20,
-    ...Shadows.buttonGlow,
-  },
-  submitButtonText: {
-    color: SurfaceColors.textInverted,
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 0.2,
   },
   footerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
-    paddingBottom: 24,
+    alignItems: 'center',
   },
   footerText: {
     fontSize: 13,
     color: SurfaceColors.textSecondary,
   },
-  loginLink: {
+  footerLink: {
     fontSize: 13,
     fontWeight: 'bold',
     color: BrandColors.primary,
-    textDecorationLine: 'underline',
   },
 });

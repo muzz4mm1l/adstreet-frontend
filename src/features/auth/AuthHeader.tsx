@@ -19,7 +19,7 @@ export const AuthHeader: React.FC<AuthHeaderProps> = ({ showBack = false, onBack
             activeOpacity={0.7}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color={SurfaceColors.textPrimary} />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
         )}
       </View>
@@ -55,11 +55,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backButton: {
-    width: 44,
-    height: 44,
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   logoWrapper: {
     alignItems: 'center',

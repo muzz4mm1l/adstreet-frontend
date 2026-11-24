@@ -8,7 +8,7 @@
     "scheme": "adstreet",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.adstreet.mobile"
     },
     "android": {
@@ -39,16 +39,6 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "router": {
-        "asyncRoutes": {
-          "web": true
-        }
-      },
-      "eas": {
-        "projectId": "fcd608f2-af26-4613-b785-7f5c0c3cc8f5"
-      }
     }
   }
 }
