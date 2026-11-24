@@ -41,7 +41,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
  * - UI-thread GPU-composited spring scaling (0.96) via Reanimated
  * - Respects accessibility reduced-motion settings
  * - Cross-platform haptic feedback via `expo-haptics`
- * - Android ripple clipped within exact border radius
+ * - Android: no ripple unless `rippleColor` is passed (press-scale only)
  */
 export const HapticPressable: React.FC<HapticPressableProps> = ({
   children,
@@ -49,7 +49,7 @@ export const HapticPressable: React.FC<HapticPressableProps> = ({
   haptic = 'light',
   scaleTo = AnimationPresets.pressScale,
   borderRadius = Radii.md,
-  rippleColor = 'rgba(227, 30, 36, 0.12)',
+  rippleColor,
   enableScaleAnimation = true,
   onPress,
   onPressIn,
@@ -123,10 +123,8 @@ export const HapticPressable: React.FC<HapticPressableProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled}
-      android_ripple={{
-        color: rippleColor,
-        borderless: false,
-      }}
+      // No Android ripple by default (the press-scale is the feedback); opt in with `rippleColor`.
+      android_ripple={rippleColor ? { color: rippleColor, borderless: false } : undefined}
       style={[
         styles.base,
         { borderRadius },

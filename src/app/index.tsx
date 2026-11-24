@@ -5,6 +5,7 @@ import { SplashScreenView } from '@/features/splash/SplashScreenView';
 import { OnboardingScreenView } from '@/features/onboarding/OnboardingScreenView';
 import { SignUpFlow } from '@/features/auth/SignUpFlow';
 import { HomeScreenView } from '@/features/home/HomeScreenView';
+import { AdBazaarScreenView } from '@/features/adbazaar/AdBazaarScreenView';
 
 type AppScreen = 'splash' | 'onboarding' | 'signup' | 'home';
 const APP_SCREENS: readonly AppScreen[] = ['splash', 'onboarding', 'signup', 'home'];
@@ -12,7 +13,7 @@ const APP_SCREENS: readonly AppScreen[] = ['splash', 'onboarding', 'signup', 'ho
 export default function AppEntry() {
   // Dev-only deep link for fast UI inspection and the screenshot harness: /?screen=signup&step=5
   // (screen: splash | onboarding | signup | home, step: 1-12). Ignored outside __DEV__.
-  const params = useLocalSearchParams<{ screen?: string; step?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; step?: string; open?: string }>();
   const devScreen = __DEV__ ? APP_SCREENS.find((s) => s === params.screen) : undefined;
   const devStep = __DEV__ ? Number(params.step) : NaN;
   const initialScreen: AppScreen = devScreen ?? 'splash';
@@ -21,6 +22,11 @@ export default function AppEntry() {
   ) as NonNullable<React.ComponentProps<typeof SignUpFlow>['initialStep']>;
 
   const [currentScreen, setCurrentScreen] = useState<AppScreen>(initialScreen);
+  // Category page shown on top of Home (Home stays mounted underneath, so back is a pure slide-off).
+  // Dev deep link: /?screen=home&open=adbazaar
+  const [openCategory, setOpenCategory] = useState<'adbazaar' | null>(
+    __DEV__ && params.open === 'adbazaar' ? 'adbazaar' : null,
+  );
   const [isSplashMounted, setIsSplashMounted] = useState(initialScreen === 'splash');
   const [isSplashMerging, setIsSplashMerging] = useState(false);
   const [hasCompletedSplash, setHasCompletedSplash] = useState(initialScreen !== 'splash');
@@ -110,8 +116,19 @@ export default function AppEntry() {
             )}
             onLogout={() => setCurrentScreen('signup')}
             onSelectCategory={(cat) => {
-              console.log('Selected category:', cat.name);
+              if (cat.type === 'adbazaar') setOpenCategory('adbazaar');
+              else console.log('Selected category:', cat.name);
             }}
+          />
+        </View>
+      )}
+
+      {/* 5. AdBazaar page (over Home) */}
+      {currentScreen === 'home' && openCategory === 'adbazaar' && (
+        <View style={StyleSheet.absoluteFill}>
+          <AdBazaarScreenView
+            onBack={() => setOpenCategory(null)}
+            renderPreviousScreen={() => <HomeScreenView />}
           />
         </View>
       )}

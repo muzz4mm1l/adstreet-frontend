@@ -25,11 +25,42 @@ import { HapticPressable } from '@/components/ui/HapticPressable';
 import { SwipeBackContainer } from '@/components/navigation/SwipeBackContainer';
 import { HomeMenu, HomeMenuItem } from './HomeMenu';
 import { BannerCarousel } from './BannerCarousel';
+import { HomeShelf, ShelfItem } from './HomeShelf';
+import { LiquidTabBar, HomeTab } from './LiquidTabBar';
+// import { LockedOverlay } from './LockedOverlay'; // lock overlay disabled for now
+import {
+  BuiltForEveryone,
+  ComingUpSection,
+  EventBanner,
+  GurusSection,
+  HappeningSection,
+  JoinCta,
+  SectionDivider,
+  OpportunitiesSection,
+  SessionsSection,
+} from './HomeSections';
+import { DisplayFont } from '@/constants/fonts';
 import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_GAP = 12;
-const CARD_WIDTH = (SCREEN_WIDTH - 20 * 2 - CARD_GAP) / 2;
+/** Categories that are not available yet get the animated lock overlay. */
+// Locks are switched off for now, so every category counts as unlocked. To bring the locks back,
+// restore the list below and un-comment the <LockedOverlay /> block and its import.
+// const UNLOCKED_CATEGORIES: readonly string[] = ['adbazaar', 'adleaks'];
+const UNLOCKED_CATEGORIES: readonly string[] = ['adbazaar', 'adleaks', 'adbooks', 'admeet', 'adguru', 'adread', 'adpro'];
+const CARD_GAP = 8;
+const CARD_RADIUS = 12;
+/** Width : height of each card's artwork — rows pair cards of equal ratio so they line up. */
+const CARD_ASPECT: Record<string, number> = {
+  adbazaar: 1.025,
+  adleaks: 1.025,
+  adbooks: 1.73,
+  admeet: 1.73,
+  adguru: 1.72,
+  adread: 1.72,
+  adpro: 3.657,
+};
+const CARD_WIDTH = Math.floor((SCREEN_WIDTH - 20 * 2 - CARD_GAP) / 2);
 
 export interface HeaderBanner {
   id: string;
@@ -71,57 +102,101 @@ export interface CategoryCardData {
   subtitle: string;
   bgColor: string;
   badgeTextColor: string;
-  type: 'adbazaar' | 'adleaks' | 'adbooks' | 'admeet' | 'adguru' | 'adread';
+  type: 'adbazaar' | 'adleaks' | 'adbooks' | 'admeet' | 'adguru' | 'adread' | 'adpro';
 }
 
 const CATEGORIES: CategoryCardData[] = [
   {
     id: 'adbazaar',
     name: 'ADBAZAAR',
-    subtitle: 'Seek/offer services',
-    bgColor: '#C8232B',
-    badgeTextColor: '#C8232B',
+    subtitle: 'Seek Exciting Offers',
+    bgColor: '#E31E24',
+    badgeTextColor: '#E31E24',
     type: 'adbazaar',
   },
   {
     id: 'adleaks',
     name: 'ADLEAKS',
     subtitle: 'Industry News',
-    bgColor: '#DE7B2C',
-    badgeTextColor: '#C7661E',
+    bgColor: '#F27920',
+    badgeTextColor: '#F27920',
     type: 'adleaks',
   },
   {
     id: 'adbooks',
     name: 'ADBOOKS',
-    subtitle: 'Connecting Professionals',
-    bgColor: '#E5A634',
-    badgeTextColor: '#B87F18',
+    subtitle: 'Industry Database',
+    bgColor: '#FBB714',
+    badgeTextColor: '#FBB714',
     type: 'adbooks',
   },
   {
     id: 'admeet',
     name: 'ADMEET',
-    subtitle: 'Events & Conferences',
-    bgColor: '#E59B32',
-    badgeTextColor: '#BC6A16',
+    subtitle: 'Events - Networking',
+    bgColor: '#C5E8FB',
+    badgeTextColor: '#2D3748',
     type: 'admeet',
   },
   {
     id: 'adguru',
     name: 'ADGURU',
     subtitle: 'Mentorship & Guidance',
-    bgColor: '#6A161E',
-    badgeTextColor: '#6A161E',
+    bgColor: '#59595B',
+    badgeTextColor: '#59595B',
     type: 'adguru',
   },
   {
     id: 'adread',
     name: 'ADREAD',
     subtitle: 'Articles & Insights',
-    bgColor: '#4B5565',
-    badgeTextColor: '#374151',
+    bgColor: '#82151A',
+    badgeTextColor: '#82151A',
     type: 'adread',
+  },
+  {
+    id: 'adpro',
+    name: 'ADPRO SERVICES',
+    subtitle: 'Adpro Services - OneStop Advertising Services',
+    bgColor: '#231F1E',
+    badgeTextColor: '#231F1E',
+    type: 'adpro',
+  },
+];
+
+// Placeholder content: add `image: require(...)` to each item once the artwork is provided.
+const FRESH_LEAKS: ShelfItem[] = [
+  {
+    id: 'leak-1',
+    title: 'Fresh Leak',
+    image: require('@/assets/images/leaks/fresh-leak.webp'),
+  },
+  {
+    id: 'leak-2',
+    title: 'A Tale of Misguided Ambitions: Chasing Foreign Dreams',
+    image: require('@/assets/images/leaks/misguided-ambitions.webp'),
+  },
+];
+const FEATURED_LISTINGS: ShelfItem[] = [
+  {
+    id: 'listing-1',
+    title: 'Copywriting',
+    image: require('@/assets/images/listings/copywriting.webp'),
+  },
+  {
+    id: 'listing-2',
+    title: 'App & Website Development',
+    image: require('@/assets/images/listings/app-development.webp'),
+  },
+  {
+    id: 'listing-3',
+    title: 'Social Media Management',
+    image: require('@/assets/images/listings/social-media.webp'),
+  },
+  {
+    id: 'listing-4',
+    title: 'Brand Developer',
+    image: require('@/assets/images/listings/brand-developer.webp'),
   },
 ];
 
@@ -153,9 +228,19 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const [menuOpen, setMenuOpen] = useState(false);
+  // taps on locked cards, per category: drives the lock's rattle
+  const [lockPings, setLockPings] = useState<Record<string, number>>({});
+  const handleCategoryPress = (cat: CategoryCardData) => {
+    if (UNLOCKED_CATEGORIES.includes(cat.type)) {
+      onSelectCategory?.(cat);
+      return;
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    setLockPings((prev) => ({ ...prev, [cat.id]: (prev[cat.id] ?? 0) + 1 }));
+  };
 
   const openMenu = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
     setMenuOpen(true);
     onOpenMenu?.();
   };
@@ -178,9 +263,9 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
       ]);
     }, 320);
   };
-  const [activeTab, setActiveTab] = useState<'home' | 'chat' | 'add' | 'notifications' | 'search'>('home');
+  const [activeTab, setActiveTab] = useState<HomeTab>('home');
   const handleTabPress = (tab: 'home' | 'chat' | 'add' | 'notifications' | 'search') => {
-    Haptics.selectionAsync().catch(() => {});
+    Haptics.selectionAsync().catch(() => { });
     setActiveTab(tab);
   };
 
@@ -305,206 +390,219 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
       <View style={styles.rootContainer}>
         <ScreenStatusBar style="light" />
 
-      {/* Main Scrollable View */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom + 96 },
-        ]}>
-        {/* 1. Deep Crimson Luxury Header */}
-        <LinearGradient
-          colors={['#800E13', '#A81218', '#C9181F', '#E31E24']}
-          locations={[0, 0.35, 0.7, 1]}
-          start={{ x: 0.2, y: 0 }}
-          end={{ x: 0.8, y: 1 }}
-          style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) }]}>
-          {/* soft light blooms give the flat crimson depth */}
-          <View pointerEvents="none" style={styles.glowClip}>
-            <View style={styles.glowTopRight} />
-            <View style={styles.glowBottomLeft} />
-          </View>
-
-          {/* Top Bar: Menu, Brand Badge, Actions */}
-          <View style={styles.topBar}>
-            {/* Hamburger Button */}
-            <TouchableOpacity
-              onPress={openMenu}
-              activeOpacity={0.75}
-              accessibilityRole="button"
-              accessibilityLabel="Open menu"
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              style={styles.iconButton}>
-              <Ionicons name="menu" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
-
-            {/* ADSTREET Logo Badge */}
-            <View style={styles.brandBadge}>
-              <Image
-                source={require('@/assets/images/splash-logo-clean.png')}
-                style={styles.brandEmblem}
-                contentFit="contain"
-              />
-              <Text style={styles.brandText}>ADSTREET</Text>
+        {/* Main Scrollable View */}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom + 96 },
+          ]}>
+          {/* 1. Deep Crimson Luxury Header */}
+          <LinearGradient
+            colors={['#800E13', '#A81218', '#C9181F', '#E31E24']}
+            locations={[0, 0.35, 0.7, 1]}
+            start={{ x: 0.2, y: 0 }}
+            end={{ x: 0.8, y: 1 }}
+            style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) }]}>
+            {/* soft light blooms give the flat crimson depth */}
+            <View pointerEvents="none" style={styles.glowClip}>
+              <View style={styles.glowTopRight} />
+              <View style={styles.glowBottomLeft} />
             </View>
 
-            {/* Right Action Icons Group */}
-            <View style={styles.rightActionsGroup}>
-              {/* Search */}
+            {/* Top Bar: Menu, Brand Badge, Actions */}
+            <View style={styles.topBar}>
+              {/* Hamburger Button */}
               <TouchableOpacity
-                onPress={onOpenSearch}
+                onPress={openMenu}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Open menu"
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 style={styles.iconButton}>
-                <Ionicons name="search" size={17} color="#FFFFFF" />
+                <Ionicons name="menu" size={22} color="#FFFFFF" />
               </TouchableOpacity>
 
-              {/* Notification with Badge Dot */}
-              <TouchableOpacity
-                onPress={onOpenNotifications}
-                activeOpacity={0.75}
-                style={styles.iconButton}>
-                <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-                <View style={styles.notificationDot} />
-              </TouchableOpacity>
+              {/* ADSTREET Logo Badge */}
+              <View style={styles.brandBadge}>
+                <Image
+                  source={require('@/assets/images/splash-logo-clean.png')}
+                  style={styles.brandEmblem}
+                  contentFit="contain"
+                />
+                <Text style={styles.brandText}>ADSTREET</Text>
+              </View>
 
-              {/* Coins Pill */}
-              <View style={styles.coinPill}>
-                <View style={styles.coinIconWrapper}>
-                  <Text style={styles.coinLetter}>A</Text>
+              {/* Right Action Icons Group */}
+              <View style={styles.rightActionsGroup}>
+                {/* Search */}
+                <TouchableOpacity
+                  onPress={onOpenSearch}
+                  activeOpacity={0.75}
+                  style={styles.iconButton}>
+                  <Ionicons name="search" size={17} color="#FFFFFF" />
+                </TouchableOpacity>
+
+                {/* Notification with Badge Dot */}
+                <TouchableOpacity
+                  onPress={onOpenNotifications}
+                  activeOpacity={0.75}
+                  style={styles.iconButton}>
+                  <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
+                  <View style={styles.notificationDot} />
+                </TouchableOpacity>
+
+                {/* Coins Pill */}
+                <View style={styles.coinPill}>
+                  <View style={styles.coinIconWrapper}>
+                    <Text style={styles.coinLetter}>A</Text>
+                  </View>
+                  <Text style={styles.coinCount}>15</Text>
                 </View>
-                <Text style={styles.coinCount}>15</Text>
               </View>
             </View>
+
+            {/* Hero banner carousel: coverflow with parallax and timed progress pill */}
+            <BannerCarousel banners={HEADER_BANNERS} />
+          </LinearGradient>
+
+          {/* 2. Categories Section */}
+          <View style={styles.bodySection}>
+            <Text style={styles.sectionHeading}>Categories</Text>
+
+            {/* 2-Column Grid */}
+            <View style={styles.gridContainer}>
+              {CATEGORIES.map((cat, idx) => (
+                <Animated.View
+                  key={cat.id}
+                  entering={FadeInDown.duration(400).delay(idx * 60)}
+                  style={cat.type === 'adpro' ? styles.cardWrapperWide : styles.cardWrapper}>
+                  <HapticPressable
+                    haptic={UNLOCKED_CATEGORIES.includes(cat.type) ? 'light' : 'none'}
+                    borderRadius={CARD_RADIUS}
+                    onPress={() => handleCategoryPress(cat)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${cat.name} - ${cat.subtitle}${
+                      UNLOCKED_CATEGORIES.includes(cat.type) ? '' : ', locked'
+                    }`}
+                    style={[
+                      cat.type === 'adpro' ? styles.categoryCardWide : styles.categoryCard,
+                      { aspectRatio: CARD_ASPECT[cat.type], backgroundColor: cat.bgColor },
+                    ]}>
+                    {cat.type === 'adbazaar' ? (
+                      // The ADBAZAAR card artwork (striped awning, dual-tone badge, and subtitle)
+                      <Image
+                        source={require('@/assets/images/categories/adbazaar-card.webp')}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                      />
+                    ) : cat.type === 'adleaks' ? (
+                      // The ADLEAKS card artwork (world map silhouette, newspaper, dual-tone badge, and subtitle)
+                      <Image
+                        source={require('@/assets/images/categories/adleaks-card.webp')}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                      />
+                    ) : cat.type === 'adbooks' ? (
+                      // The ADBOOKS card artwork (contact icons, dual-tone badge, and subtitle)
+                      <Image
+                        source={require('@/assets/images/categories/adbooks-card.webp')}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                      />
+                    ) : cat.type === 'admeet' ? (
+                      // The ADMEET card artwork (people networking illustration, badge, and subtitle)
+                      <Image
+                        source={require('@/assets/images/categories/admeet-card.webp')}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                      />
+                    ) : cat.type === 'adpro' ? (
+                      // Full-width ADPRO SERVICES banner card (logo + tagline artwork)
+                      <Image
+                        source={require('@/assets/images/categories/adpro-card.webp')}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                      />
+                    ) : cat.type === 'adguru' || cat.type === 'adread' ? (
+                      // The ADGURU / ADREAD cards are ready-made artwork (logo + tagline): show it whole.
+                      <Image
+                        source={
+                        cat.type === 'adguru'
+                          ? require('@/assets/images/adguru-card.png')
+                          : require('@/assets/images/adread-card.png')
+                      }
+                        style={StyleSheet.absoluteFill}
+                        contentFit="contain"
+                      />
+                    ) : (
+                      <>
+                        {/* Top Graphic Illustration Area */}
+                        <View style={styles.cardGraphicArea}>
+                          {renderCategoryGraphic(cat.type)}
+                        </View>
+
+                        {/* Category Name Badge */}
+                        <View style={styles.categoryBadge}>
+                          <Text style={[styles.categoryBadgeText, { color: cat.badgeTextColor }]}>
+                            {cat.name}
+                          </Text>
+                        </View>
+
+                        {/* Subtitle */}
+                        <Text style={styles.cardSubtitle} numberOfLines={1}>
+                          {cat.subtitle}
+                        </Text>
+                      </>
+                    )}
+                    {/* Lock overlay disabled for now:
+                    {!UNLOCKED_CATEGORIES.includes(cat.type) && (
+                      <LockedOverlay ping={lockPings[cat.id] ?? 0} />
+                    )}
+                    */}
+                  </HapticPressable>
+                </Animated.View>
+              ))}
+            </View>
+
+            <SectionDivider />
+            <HomeShelf title="Explore market's fresh leaks" items={FRESH_LEAKS} />
+            <SectionDivider />
+            <HomeShelf title="Featured Listings" items={FEATURED_LISTINGS} />
+
+            <SectionDivider />
+            <BuiltForEveryone />
+            <SectionDivider />
+            <EventBanner />
+            <OpportunitiesSection />
+            <SectionDivider />
+            <GurusSection />
+            <SectionDivider />
+            <HappeningSection />
+            <SectionDivider />
+            <ComingUpSection />
+            <SectionDivider />
+            <SessionsSection />
+            <SectionDivider />
+            <JoinCta />
           </View>
+        </ScrollView>
 
-          {/* Hero banner carousel: coverflow with parallax and timed progress pill */}
-          <BannerCarousel banners={HEADER_BANNERS} />
-        </LinearGradient>
-
-        {/* 2. Categories Section */}
-        <View style={styles.bodySection}>
-          <Text style={styles.sectionHeading}>Categories</Text>
-
-          {/* 2-Column Grid */}
-          <View style={styles.gridContainer}>
-            {CATEGORIES.map((cat, idx) => (
-              <Animated.View
-                key={cat.id}
-                entering={FadeInDown.duration(400).delay(idx * 60)}
-                style={styles.cardWrapper}>
-                <HapticPressable
-                  haptic="light"
-                  borderRadius={18}
-                  onPress={() => onSelectCategory?.(cat)}
-                  style={[styles.categoryCard, { backgroundColor: cat.bgColor }]}>
-                  {/* Top Graphic Illustration Area */}
-                  <View style={styles.cardGraphicArea}>
-                    {renderCategoryGraphic(cat.type)}
-                  </View>
-
-                  {/* Category Name Badge */}
-                  <View style={styles.categoryBadge}>
-                    <Text style={[styles.categoryBadgeText, { color: cat.badgeTextColor }]}>
-                      {cat.name}
-                    </Text>
-                  </View>
-
-                  {/* Subtitle */}
-                  <Text style={styles.cardSubtitle} numberOfLines={1}>
-                    {cat.subtitle}
-                  </Text>
-                </HapticPressable>
-              </Animated.View>
-            ))}
-          </View>
+        {/* 3. Floating Bottom Tab Bar with Liquid Glass */}
+        <View
+          pointerEvents="box-none"
+          style={[styles.floatingBarWrapper, { bottom: Math.max(insets.bottom, 12) }]}>
+          <LiquidTabBar active={activeTab} onChange={handleTabPress} />
         </View>
-      </ScrollView>
-
-      {/* 3. Floating Bottom Tab Bar with Liquid Glass */}
-      <View
-        pointerEvents="box-none"
-        style={[styles.floatingBarWrapper, { bottom: Math.max(insets.bottom, 12) }]}>
-        <GlassSurface
-          borderRadius={999}
-          intensity={65}
-          tint={Platform.OS === 'ios' ? 'systemChromeMaterialDark' : 'dark'}
-          fallbackColor="rgba(30, 30, 32, 0.88)"
-          elevation={12}
-          style={styles.glassBar}>
-          <View style={styles.tabBarInner}>
-            {/* 1. Home Tab (Active Pill) */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => handleTabPress('home')}
-              style={[
-                styles.tabItem,
-                activeTab === 'home' ? styles.activeHomePill : styles.inactiveTab,
-              ]}>
-              <Ionicons
-                name="home"
-                size={18}
-                color={activeTab === 'home' ? BrandColors.primary : 'rgba(255, 255, 255, 0.75)'}
-              />
-              {activeTab === 'home' && (
-                <Text style={styles.activeHomeText}>Home</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* 2. Chat Tab */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => handleTabPress('chat')}
-              style={styles.tabItem}>
-              <Ionicons
-                name={activeTab === 'chat' ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'}
-                size={20}
-                color={activeTab === 'chat' ? '#FFFFFF' : 'rgba(255, 255, 255, 0.75)'}
-              />
-            </TouchableOpacity>
-
-            {/* 3. Elevated Add (+) Button */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => handleTabPress('add')}
-              style={styles.centerAddButton}>
-              <Ionicons name="add" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-
-            {/* 4. Notifications Tab */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => handleTabPress('notifications')}
-              style={styles.tabItem}>
-              <Ionicons
-                name={activeTab === 'notifications' ? 'notifications' : 'notifications-outline'}
-                size={20}
-                color={activeTab === 'notifications' ? '#FFFFFF' : 'rgba(255, 255, 255, 0.75)'}
-              />
-            </TouchableOpacity>
-
-            {/* 5. Search Tab */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => handleTabPress('search')}
-              style={styles.tabItem}>
-              <Ionicons
-                name={activeTab === 'search' ? 'search' : 'search-outline'}
-                size={20}
-                color={activeTab === 'search' ? '#FFFFFF' : 'rgba(255, 255, 255, 0.75)'}
-              />
-            </TouchableOpacity>
-          </View>
-        </GlassSurface>
       </View>
-    </View>
-    <HomeMenu
-      visible={menuOpen}
-      onClose={() => setMenuOpen(false)}
-      onSelectCategory={handleMenuCategory}
-      onSelectItem={handleMenuItem}
-      onLogout={handleLogout}
-    />
-  </SwipeBackContainer>
+      <HomeMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onSelectCategory={handleMenuCategory}
+        onSelectItem={handleMenuItem}
+        onLogout={handleLogout}
+      />
+    </SwipeBackContainer>
   );
 };
 
@@ -677,17 +775,12 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   sectionHeading: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: 'bold',
+    fontSize: 26,
+    lineHeight: 32,
     color: '#111827',
-    fontFamily: Platform.select({
-      ios: 'Georgia',
-      android: 'serif',
-      default: 'serif',
-    }),
+    fontFamily: DisplayFont.bold,
     letterSpacing: -0.2,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   gridContainer: {
     flexDirection: 'row',
@@ -695,16 +788,32 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardWrapper: {
-    width: '48.2%',
+    width: CARD_WIDTH,
     marginBottom: CARD_GAP,
+  },
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(0, 0, 0, 0.14)',
+    marginTop: 10,
+    marginBottom: 18,
+  },
+  cardWrapperWide: {
+    width: '100%',
+    marginBottom: CARD_GAP,
+  },
+  categoryCardWide: {
+    width: '100%',
+    borderRadius: CARD_RADIUS,
+    overflow: 'hidden',
+    ...Shadows.card,
   },
   categoryCard: {
     width: '100%',
-    height: 154,
-    borderRadius: 18,
+    borderRadius: CARD_RADIUS,
     padding: 12,
     alignItems: 'center',
     justifyContent: 'space-between',
+    overflow: 'hidden',
     ...Shadows.card,
   },
   cardGraphicArea: {
