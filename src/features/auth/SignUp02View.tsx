@@ -1,3 +1,4 @@
+import { AUTH_TITLE_GAP, AUTH_TITLE_HEIGHT } from './authLayout';
 import React, { useState } from 'react';
 import {
   View,
@@ -9,7 +10,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GradientButton } from '@/components/ui/GradientButton';
-import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
+import { BrandColors, Radii, Shadows } from '@/constants/theme';
+import { AppTheme } from '@/theme/colors';
+import { useAppTheme, useThemedStyles } from '@/theme/useAppTheme';
 
 interface SignUp02ViewProps {
   password: string;
@@ -36,6 +39,8 @@ export const SignUp02View: React.FC<SignUp02ViewProps> = ({
   onSubmit,
   onLogin,
 }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -65,7 +70,7 @@ export const SignUp02View: React.FC<SignUp02ViewProps> = ({
           <TextInput
             style={[styles.input, styles.passwordInput]}
             placeholder="Password"
-            placeholderTextColor={SurfaceColors.textMuted}
+            placeholderTextColor={theme.textMuted}
             secureTextEntry={!showPassword}
             autoCapitalize="none"
             autoCorrect={false}
@@ -81,7 +86,7 @@ export const SignUp02View: React.FC<SignUp02ViewProps> = ({
             <Ionicons
               name={showPassword ? 'eye-outline' : 'eye-off-outline'}
               size={18}
-              color={SurfaceColors.textMuted}
+              color={theme.textMuted}
             />
           </TouchableOpacity>
         </View>
@@ -101,7 +106,7 @@ export const SignUp02View: React.FC<SignUp02ViewProps> = ({
               isPasswordMismatch && styles.inputErrorBorder,
             ]}
             placeholder="Confirm password"
-            placeholderTextColor={SurfaceColors.textMuted}
+            placeholderTextColor={theme.textMuted}
             secureTextEntry={!showConfirmPassword}
             autoCapitalize="none"
             autoCorrect={false}
@@ -118,7 +123,7 @@ export const SignUp02View: React.FC<SignUp02ViewProps> = ({
             <Ionicons
               name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
               size={18}
-              color={SurfaceColors.textMuted}
+              color={theme.textMuted}
             />
           </TouchableOpacity>
         </View>
@@ -155,20 +160,23 @@ export const SignUp02View: React.FC<SignUp02ViewProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (t: AppTheme) =>
+  StyleSheet.create({
   container: {
     width: '100%',
     paddingHorizontal: 24,
   },
   titleSection: {
     alignItems: 'center',
-    marginBottom: 28,
+    // Same height on every auth screen so the first text box always sits at the same y.
+    minHeight: AUTH_TITLE_HEIGHT,
+    marginBottom: AUTH_TITLE_GAP,
   },
   heading: {
     fontSize: 24,
     lineHeight: 32,
     fontWeight: 'bold',
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     textAlign: 'center',
     fontFamily: Platform.select({
       ios: 'Georgia',
@@ -180,7 +188,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 12.5,
     lineHeight: 18,
-    color: SurfaceColors.textSecondary,
+    color: t.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 16,
@@ -200,13 +208,13 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 52,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     borderRadius: Radii.pill,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: t.border,
     paddingHorizontal: 20,
     fontSize: 14.5,
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     ...Shadows.card,
   },
   passwordInput: {
@@ -248,7 +256,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    color: SurfaceColors.textSecondary,
+    color: t.textSecondary,
   },
   loginLink: {
     fontSize: 13,

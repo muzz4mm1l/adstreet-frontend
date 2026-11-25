@@ -24,6 +24,7 @@ import Animated, {
   useSharedValue,
   withSpring,
   withTiming,
+  LayoutAnimationConfig,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
@@ -379,7 +380,11 @@ const ActiveSwipeBackContainer: React.FC<SwipeBackContainerProps> = ({
           pointerEvents="none"
           onLayout={startPendingSlide}
           style={[StyleSheet.absoluteFill, peekStyle]}>
-          <PeekContext.Provider value>{peek.node}</PeekContext.Provider>
+          {/* The preview must be static: replaying its entering animations (cards sliding in,
+              fades) made the revealed screen visibly move before it settled. */}
+          <LayoutAnimationConfig skipEntering skipExiting>
+            <PeekContext.Provider value>{peek.node}</PeekContext.Provider>
+          </LayoutAnimationConfig>
           <Animated.View
             pointerEvents="none"
             style={[StyleSheet.absoluteFill, styles.dim, dimStyle]}

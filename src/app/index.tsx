@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/useAppTheme';
 import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
@@ -11,6 +12,7 @@ type AppScreen = 'splash' | 'onboarding' | 'signup' | 'home';
 const APP_SCREENS: readonly AppScreen[] = ['splash', 'onboarding', 'signup', 'home'];
 
 export default function AppEntry() {
+  const theme = useAppTheme();
   // Dev-only deep link for fast UI inspection and the screenshot harness: /?screen=signup&step=5
   // (screen: splash | onboarding | signup | home, step: 1-12). Ignored outside __DEV__.
   const params = useLocalSearchParams<{ screen?: string; step?: string; open?: string }>();
@@ -52,8 +54,15 @@ export default function AppEntry() {
     setCurrentScreen('signup');
   };
 
+  // Sign-up -> Onboarding (back). The departing sign-up flow (already slid off-screen, still
+  // showing the frozen Onboarding preview) stays mounted for two frames, so the real Onboarding
+  // can mount and lay out behind it. Unmounting it immediately exposed a half-laid-out Onboarding
+  // for a frame (content jumping up, then settling).
+  const [leavingSignup, setLeavingSignup] = useState(false);
   const handleBackToOnboarding = () => {
     setCurrentScreen('onboarding');
+    setLeavingSignup(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => setLeavingSignup(false)));
   };
 
   const handleBackToSignup = () => {
@@ -69,7 +78,7 @@ export default function AppEntry() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.canvas }]}>
       {/* 1. Base Onboarding Screen (Mounted during Splash for seamless zero-flicker background and blossom transition) */}
       {(currentScreen === 'onboarding' || isSplashMounted) && (
         <View style={StyleSheet.absoluteFill}>
@@ -92,7 +101,7 @@ export default function AppEntry() {
       )}
 
       {/* 3. Sign Up & Login Flow (Opens directly to Log in screen after Onboarding) */}
-      {currentScreen === 'signup' && (
+      {(currentScreen === 'signup' || leavingSignup) && (
         <View style={StyleSheet.absoluteFill}>
           <SignUpFlow
             initialStep={initialSignUpStep}

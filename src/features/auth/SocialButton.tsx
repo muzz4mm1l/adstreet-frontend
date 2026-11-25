@@ -2,7 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesome5, FontAwesome } from '@expo/vector-icons';
 import { HapticPressable } from '@/components/ui/HapticPressable';
-import { Radii, SurfaceColors } from '@/constants/theme';
+import { Radii } from '@/constants/theme';
+import { AppTheme } from '@/theme/colors';
+import { useAppTheme, useThemedStyles } from '@/theme/useAppTheme';
 
 export type SocialProvider = 'google' | 'apple' | 'facebook';
 
@@ -17,6 +19,8 @@ export const SocialButton: React.FC<SocialButtonProps> = ({
   onPress,
   label: customLabel,
 }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
   const getProviderConfig = () => {
     switch (provider) {
       case 'google':
@@ -27,7 +31,7 @@ export const SocialButton: React.FC<SocialButtonProps> = ({
       case 'apple':
         return {
           label: customLabel || 'Continue with Apple',
-          icon: <FontAwesome5 name="apple" size={20} color="#000000" />,
+          icon: <FontAwesome5 name="apple" size={20} color={theme.text} />,
         };
       case 'facebook':
         return {
@@ -52,13 +56,14 @@ export const SocialButton: React.FC<SocialButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (t: AppTheme) =>
+  StyleSheet.create({
   button: {
     height: 50,
-    backgroundColor: SurfaceColors.card,
+    backgroundColor: t.surface,
     borderRadius: Radii.pill,
     borderWidth: 1,
-    borderColor: SurfaceColors.borderLight,
+    borderColor: t.border,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -79,7 +84,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14.5,
     fontWeight: '500',
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     letterSpacing: -0.1,
   },
   spacer: {

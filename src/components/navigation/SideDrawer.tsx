@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/useAppTheme';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
@@ -34,6 +35,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ visible, onClose, childr
   const panelW = Math.min(Math.round(winW * 0.8), 340);
   const reduceMotion = useReducedMotion();
   const [modalOpen, setModalOpen] = useState(visible);
+  const theme = useAppTheme();
   const x = useSharedValue(-panelW);
 
   useEffect(() => {
@@ -96,7 +98,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ visible, onClose, childr
         </Animated.View>
 
         <GestureDetector gesture={pan}>
-          <Animated.View style={[styles.panel, { width: panelW }, panelStyle]}>
+          <Animated.View style={[styles.panel, { width: panelW, backgroundColor: theme.surface }, panelStyle]}>
             <View style={styles.panelClip}>{children}</View>
           </Animated.View>
         </GestureDetector>
@@ -120,7 +122,7 @@ const styles = StyleSheet.create({
     left: 0,
     borderTopRightRadius: 28,
     borderBottomRightRadius: 28,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFFFF', // light default; the live theme colour is applied inline
     ...Shadows.modal,
   },
   panelClip: {

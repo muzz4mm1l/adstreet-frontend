@@ -1,3 +1,4 @@
+import { AUTH_TITLE_GAP, AUTH_TITLE_HEIGHT } from './authLayout';
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -10,7 +11,9 @@ import {
 import { HapticPressable } from '@/components/ui/HapticPressable';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { CodeSlots, CodeSlotsStatus } from '@/components/ui/CodeSlots';
-import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
+import { BrandColors, Radii, Shadows } from '@/constants/theme';
+import { AppTheme } from '@/theme/colors';
+import { useAppTheme, useThemedStyles } from '@/theme/useAppTheme';
 
 interface SignUp03ViewProps {
   email: string;
@@ -29,6 +32,8 @@ export const SignUp03View: React.FC<SignUp03ViewProps> = ({
   onChangeEmail,
   onResend,
 }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
   const { width: windowWidth } = useWindowDimensions();
   const [secondsRemaining, setSecondsRemaining] = useState(45);
   const [status, setStatus] = useState<CodeSlotsStatus>('idle');
@@ -102,8 +107,8 @@ export const SignUp03View: React.FC<SignUp03ViewProps> = ({
           autoFocus={true}
           accentColor={BrandColors.primary}
           inkColor={BrandColors.primary}
-          slotColor={SurfaceColors.card}
-          digitColor={SurfaceColors.textPrimary}
+          slotColor={theme.surface}
+          digitColor={theme.text}
           dangerColor={BrandColors.primary}
           slotSize={responsiveSlotSize}
           gap={responsiveGap}
@@ -152,20 +157,23 @@ export const SignUp03View: React.FC<SignUp03ViewProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (t: AppTheme) =>
+  StyleSheet.create({
   container: {
     width: '100%',
     paddingHorizontal: 24,
   },
   titleSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    // Same height on every auth screen so the first text box always sits at the same y.
+    minHeight: AUTH_TITLE_HEIGHT,
+    marginBottom: AUTH_TITLE_GAP,
   },
   heading: {
     fontSize: 24,
     lineHeight: 32,
     fontWeight: 'bold',
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     textAlign: 'center',
     fontFamily: Platform.select({
       ios: 'Georgia',
@@ -177,13 +185,13 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 12.5,
     lineHeight: 18,
-    color: SurfaceColors.textSecondary,
+    color: t.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 16,
   },
   emailHighlight: {
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     fontWeight: '600',
   },
   codeSlotsWrapper: {
@@ -198,7 +206,7 @@ const styles = StyleSheet.create({
   },
   timerText: {
     fontSize: 13,
-    color: SurfaceColors.textSecondary,
+    color: t.textSecondary,
     fontWeight: '400',
   },
   timerHighlight: {
@@ -223,12 +231,12 @@ const styles = StyleSheet.create({
   changeEmailButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+    backgroundColor: t.border,
     borderRadius: Radii.pill,
   },
   changeEmailText: {
     fontSize: 13,
-    color: SurfaceColors.textSecondary,
+    color: t.textSecondary,
     fontWeight: '600',
   },
 });

@@ -1,9 +1,12 @@
+import { AUTH_TITLE_GAP, AUTH_TITLE_HEIGHT } from './authLayout';
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { GradientButton } from '@/components/ui/GradientButton';
-import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
+import { BrandColors, Radii, Shadows } from '@/constants/theme';
+import { AppTheme } from '@/theme/colors';
+import { useAppTheme, useThemedStyles } from '@/theme/useAppTheme';
 
 interface SignUp12ViewProps {
   email: string;
@@ -20,6 +23,8 @@ export const SignUp12View: React.FC<SignUp12ViewProps> = ({
   onChangeEmail,
   onSendCode,
 }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
   const handleSendCode = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     onSendCode();
@@ -47,7 +52,7 @@ export const SignUp12View: React.FC<SignUp12ViewProps> = ({
           <TextInput
             style={[styles.input, styles.inputWithLeftIcon]}
             placeholder="abc@gmail.com"
-            placeholderTextColor={SurfaceColors.textMuted}
+            placeholderTextColor={theme.textMuted}
             value={email}
             onChangeText={onChangeEmail}
             autoCapitalize="none"
@@ -68,20 +73,23 @@ export const SignUp12View: React.FC<SignUp12ViewProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (t: AppTheme) =>
+  StyleSheet.create({
   container: {
     width: '100%',
     paddingHorizontal: 24,
   },
   titleSection: {
     alignItems: 'center',
-    marginBottom: 36,
+    // Same height on every auth screen so the first text box always sits at the same y.
+    minHeight: AUTH_TITLE_HEIGHT,
+    marginBottom: AUTH_TITLE_GAP,
   },
   heading: {
     fontSize: 24,
     lineHeight: 32,
     fontWeight: 'bold',
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     textAlign: 'center',
     fontFamily: Platform.select({
       ios: 'Georgia',
@@ -93,7 +101,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 12.5,
     lineHeight: 18,
-    color: SurfaceColors.textSecondary,
+    color: t.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 16,
@@ -113,13 +121,13 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 52,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     borderRadius: Radii.pill,
     paddingHorizontal: 20,
     fontSize: 14.5,
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: t.border,
     ...Shadows.card,
   },
   inputWithLeftIcon: {

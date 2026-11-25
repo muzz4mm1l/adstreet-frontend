@@ -6,12 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenStatusBar } from '@/components/navigation/ScreenStatusBar';
 import { SwipeBackContainer } from '@/components/navigation/SwipeBackContainer';
 import { HapticPressable } from '@/components/ui/HapticPressable';
-import { SurfaceColors } from '@/constants/theme';
+import { BrandColors } from '@/constants/theme';
 import { PopularJobs } from './PopularJobs';
+import { AppTheme } from '@/theme/colors';
+import { useAppTheme, useThemedStyles } from '@/theme/useAppTheme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const DEEP_RED = '#E8222A';
+const DEEP_RED = BrandColors.primary;
 const TEAL = '#3FBFC2';
 
 interface ServiceCategory {
@@ -59,6 +61,7 @@ interface AdBazaarScreenViewProps {
 
 /** Brand badge: gray "AD" + red "BAZAAR" in a white, double-outlined pill. */
 const LogoBadge: React.FC<{ size?: 'sm' | 'lg' }> = ({ size = 'sm' }) => {
+  const styles = useThemedStyles(createStyles);
   const big = size === 'lg';
   return (
     <View style={[styles.badgeOuter, big && styles.badgeOuterLg]}>
@@ -73,25 +76,30 @@ const LogoBadge: React.FC<{ size?: 'sm' | 'lg' }> = ({ size = 'sm' }) => {
 };
 
 /** Striped shop awning with scalloped edge, drawn with Views. */
-const Awning: React.FC<{ height: number }> = ({ height }) => (
+const Awning: React.FC<{ height: number }> = ({ height }) => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={[styles.awning, { height }]} pointerEvents="none">
     {Array.from({ length: 9 }).map((_, i) => (
       <View key={i} style={[styles.awningStripe, { backgroundColor: i % 2 === 0 ? TEAL : '#FFFFFF' }]} />
     ))}
   </View>
-);
+  );
+};
 
 export const AdBazaarScreenView: React.FC<AdBazaarScreenViewProps> = ({
   onBack,
   renderPreviousScreen,
   onSelectCategory,
 }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
   const insets = useSafeAreaInsets();
 
   return (
     <SwipeBackContainer
       onBack={onBack}
-      backgroundColor={SurfaceColors.canvas}
+      backgroundColor={theme.canvas}
       renderPrevious={renderPreviousScreen}>
       <View style={styles.root}>
         <ScreenStatusBar style="light" />
@@ -129,10 +137,10 @@ export const AdBazaarScreenView: React.FC<AdBazaarScreenViewProps> = ({
             </Animated.Text>
 
             <Animated.View entering={FadeInDown.duration(380).delay(200)} style={styles.searchBar}>
-              <Ionicons name="search-outline" size={18} color="#9AA0A6" />
+              <Ionicons name="search-outline" size={18} color={theme.textMuted} />
               <TextInput
                 placeholder="Search For Services"
-                placeholderTextColor="#9AA0A6"
+                placeholderTextColor={theme.textMuted}
                 returnKeyType="search"
                 style={styles.searchInput}
                 accessibilityLabel="Search for services"
@@ -175,10 +183,11 @@ export const AdBazaarScreenView: React.FC<AdBazaarScreenViewProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (t: AppTheme) =>
+  StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: SurfaceColors.canvas,
+    backgroundColor: t.canvas,
   },
   header: {
     backgroundColor: DEEP_RED,
@@ -211,12 +220,12 @@ const styles = StyleSheet.create({
     height: 44,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: '#F6F6F6',
+    backgroundColor: t.surface,
   },
   searchInput: {
     flex: 1,
     fontSize: 13,
-    color: '#1F2937',
+    color: t.text,
     paddingVertical: 0,
     textAlignVertical: 'center',
   },
@@ -298,7 +307,7 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     lineHeight: 15,
     textAlign: 'center',
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     fontWeight: '500',
   },
   jobsGap: {

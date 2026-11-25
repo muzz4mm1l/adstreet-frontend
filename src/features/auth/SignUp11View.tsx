@@ -1,3 +1,4 @@
+import { AUTH_TITLE_GAP, AUTH_TITLE_HEIGHT } from './authLayout';
 import React, { useState } from 'react';
 import {
   View,
@@ -11,7 +12,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { SocialButton, SocialProvider } from './SocialButton';
 import { GradientButton } from '@/components/ui/GradientButton';
-import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
+import { BrandColors, Radii, Shadows } from '@/constants/theme';
+import { AppTheme } from '@/theme/colors';
+import { useAppTheme, useThemedStyles } from '@/theme/useAppTheme';
 
 interface SignUp11ViewProps {
   email: string;
@@ -34,6 +37,8 @@ export const SignUp11View: React.FC<SignUp11ViewProps> = ({
   onSignUp,
   onSocialLogin,
 }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -75,7 +80,7 @@ export const SignUp11View: React.FC<SignUp11ViewProps> = ({
           <TextInput
             style={[styles.input, styles.inputWithLeftIcon]}
             placeholder="abc@gmail.com"
-            placeholderTextColor={SurfaceColors.textMuted}
+            placeholderTextColor={theme.textMuted}
             value={email}
             onChangeText={onChangeEmail}
             autoCapitalize="none"
@@ -95,7 +100,7 @@ export const SignUp11View: React.FC<SignUp11ViewProps> = ({
           <TextInput
             style={[styles.input, styles.passwordInput]}
             placeholder="Password"
-            placeholderTextColor={SurfaceColors.textMuted}
+            placeholderTextColor={theme.textMuted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -110,7 +115,7 @@ export const SignUp11View: React.FC<SignUp11ViewProps> = ({
             <Ionicons
               name={showPassword ? 'eye-outline' : 'eye-off-outline'}
               size={18}
-              color={SurfaceColors.textMuted}
+              color={theme.textMuted}
             />
           </TouchableOpacity>
         </View>
@@ -166,20 +171,23 @@ export const SignUp11View: React.FC<SignUp11ViewProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (t: AppTheme) =>
+  StyleSheet.create({
   container: {
     width: '100%',
     paddingHorizontal: 24,
   },
   titleSection: {
     alignItems: 'center',
-    marginBottom: 28,
+    // Same height on every auth screen so the first text box always sits at the same y.
+    minHeight: AUTH_TITLE_HEIGHT,
+    marginBottom: AUTH_TITLE_GAP,
   },
   heading: {
     fontSize: 24,
     lineHeight: 32,
     fontWeight: 'bold',
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     textAlign: 'center',
     fontFamily: Platform.select({
       ios: 'Georgia',
@@ -191,7 +199,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 12.5,
     lineHeight: 18,
-    color: SurfaceColors.textSecondary,
+    color: t.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 16,
@@ -211,13 +219,13 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 52,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     borderRadius: Radii.pill,
     paddingHorizontal: 20,
     fontSize: 14.5,
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: t.border,
     ...Shadows.card,
   },
   inputWithLeftIcon: {
@@ -259,12 +267,12 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    backgroundColor: t.border,
   },
   dividerText: {
     marginHorizontal: 14,
     fontSize: 12,
-    color: SurfaceColors.textMuted,
+    color: t.textMuted,
   },
   socialGroup: {
     marginBottom: 24,
@@ -280,7 +288,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    color: SurfaceColors.textSecondary,
+    color: t.textSecondary,
   },
   footerLink: {
     fontSize: 13,

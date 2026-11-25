@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
+import { loadThemePreference } from '@/theme/themePreference';
 import { PlayfairDisplay_600SemiBold, PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
 
 // Prevent native splash screen from autohiding until app is mounted
@@ -14,7 +15,11 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ PlayfairDisplay_600SemiBold, PlayfairDisplay_700Bold });
-  const ready = fontsLoaded || !!fontError;
+  const [themeReady, setThemeReady] = React.useState(false);
+  useEffect(() => {
+    loadThemePreference().finally(() => setThemeReady(true));
+  }, []);
+  const ready = (fontsLoaded || !!fontError) && themeReady;
 
   // Hold the native splash until the display font is ready (no font-swap flash).
   useEffect(() => {

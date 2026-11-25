@@ -1,3 +1,5 @@
+import { useAppTheme } from '@/theme/useAppTheme';
+import { AUTH_CONTENT_TOP } from './authLayout';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
@@ -107,6 +109,7 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
   renderPreviousScreen,
   instantEntry = false,
 }) => {
+  const theme = useAppTheme();
   const [step, setStep] = useState<SignUpStep>(initialStep);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
   // True while a back slide already played: steps swap without their own enter/exit animation.
@@ -347,7 +350,7 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
 
     return (
       <AuthBackground style={styles.container}>
-        <ScreenStatusBar style="dark" />
+        <ScreenStatusBar style={theme.statusBar} />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
@@ -358,7 +361,7 @@ export const SignUpFlow: React.FC<SignUpFlowProps> = ({
 
           {/* Scrollable Form Body with 60fps Bidirectional Transitions */}
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={step === 5 ? styles.scrollContentProfile : styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
               {/* STEP 01: Create an Account (Email Input & Sign Up CTA) */}
@@ -655,6 +658,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
+    // Top-aligned (not centred) so text boxes keep the same position from screen to screen.
+    justifyContent: 'flex-start',
+    paddingTop: AUTH_CONTENT_TOP,
+    paddingBottom: 24,
+  },
+  // "Set up your profile" keeps its original layout (it has its own long, centred form).
+  scrollContentProfile: {
     flexGrow: 1,
     justifyContent: 'center',
     paddingBottom: 24,

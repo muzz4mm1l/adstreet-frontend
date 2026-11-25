@@ -14,15 +14,17 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { HapticPressable } from '@/components/ui/HapticPressable';
 import { Image } from 'expo-image';
 import { DisplayFont } from '@/constants/fonts';
-import { Shadows } from '@/constants/theme';
+import { BrandColors, Shadows } from '@/constants/theme';
+import { withAlpha } from '@/theme/colors';
+import { useAppTheme } from '@/theme/useAppTheme';
+import { AppTheme } from '@/theme/colors';
+import { useThemedStyles } from '@/theme/useAppTheme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type Stops = readonly [string, string, ...string[]];
 
-const RED = '#E01E26';
+const RED = BrandColors.primary;
 const SERIF = DisplayFont.bold;
-const INK = '#2B2B30';
-const MUTED = '#7A7F87';
 const PAGE_PAD = 20;
 const BANNER_RADIUS = 16;
 const BANNER_ASPECT = 2.34; // advision-banner.jpg is 1170 x 500
@@ -41,7 +43,9 @@ const TwoToneTitle: React.FC<{ parts: TitlePart[]; center?: boolean; size?: numb
   parts,
   center,
   size = 27,
-}) => (
+}) => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <Text
     accessibilityRole="header"
     style={[styles.title, { fontSize: size, lineHeight: size * 1.25 }, center && styles.center]}>
@@ -51,7 +55,8 @@ const TwoToneTitle: React.FC<{ parts: TitlePart[]; center?: boolean; size?: numb
       </Text>
     ))}
   </Text>
-);
+  );
+};
 
 interface SectionHeaderProps {
   tag: string;
@@ -71,10 +76,12 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   action,
   onAction,
   center,
-}) => (
+}) => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={[styles.sectionHeader, center && styles.sectionHeaderCenter]}>
     <View style={[styles.headerText, center && styles.headerTextCenter]}>
-      <View style={[styles.tag, { backgroundColor: tagBg }]}>
+      <View style={[styles.tag, { backgroundColor: withAlpha(tagColor, 0.16) }]}>
         <Text style={[styles.tagText, { color: tagColor }]}>{tag}</Text>
       </View>
       <TwoToneTitle parts={title} center={center} />
@@ -93,7 +100,8 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
       </HapticPressable>
     ) : null}
   </View>
-);
+  );
+};
 
 interface RedButtonProps {
   label: string;
@@ -103,7 +111,9 @@ interface RedButtonProps {
   pill?: boolean;
 }
 
-const RedButton: React.FC<RedButtonProps> = ({ label, onPress, size = 'md', fill, pill }) => (
+const RedButton: React.FC<RedButtonProps> = ({ label, onPress, size = 'md', fill, pill }) => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <HapticPressable
     haptic="light"
     borderRadius={pill ? 999 : size === 'sm' ? 9 : 11}
@@ -113,37 +123,50 @@ const RedButton: React.FC<RedButtonProps> = ({ label, onPress, size = 'md', fill
     style={[styles.redButton, size === 'sm' && styles.redButtonSm, fill && styles.fill]}>
     <Text style={[styles.redButtonText, size === 'sm' && styles.redButtonTextSm]}>{label}</Text>
   </HapticPressable>
-);
+  );
+};
 
-const Chip: React.FC<{ label: string; color: string; bg: string }> = ({ label, color, bg }) => (
-  <View style={[styles.chip, { backgroundColor: bg }]}>
+const Chip: React.FC<{ label: string; color: string; bg: string }> = ({ label, color, bg }) => {
+  const styles = useThemedStyles(createStyles);
+  return (
+  <View style={[styles.chip, { backgroundColor: withAlpha(color, 0.16) }]}>
     <Text style={[styles.chipText, { color }]} numberOfLines={1}>
       {label}
     </Text>
   </View>
-);
+  );
+};
 
 /** Soft separator between Home sections: a hairline that fades out at both ends. */
-export const SectionDivider: React.FC = () => (
+export const SectionDivider: React.FC = () => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
+  return (
   <View style={styles.divider} pointerEvents="none" accessibilityElementsHidden>
     <LinearGradient
-      colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.16)', 'rgba(0,0,0,0)']}
+      colors={[theme.divider.replace(/[\d.]+\)$/, '0)'), theme.divider, theme.divider.replace(/[\d.]+\)$/, '0)')]}
       start={{ x: 0, y: 0.5 }}
       end={{ x: 1, y: 0.5 }}
       style={styles.dividerLine}
     />
   </View>
-);
+  );
+};
 
 /** Photo slot: shows `image` when provided, otherwise a tinted placeholder. */
-const Photo: React.FC<{ tint: Stops; icon: IconName; style?: object }> = ({ tint, icon, style }) => (
+const Photo: React.FC<{ tint: Stops; icon: IconName; style?: object }> = ({ tint, icon, style }) => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <LinearGradient colors={tint} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.photo, style]}>
     <Ionicons name={icon} size={30} color="rgba(255,255,255,0.9)" />
   </LinearGradient>
-);
+  );
+};
 
 /** Page-dot indicator: red pill for the active page, grey dots for the rest. */
-const Dots: React.FC<{ count: number; active: number }> = ({ count, active }) => (
+const Dots: React.FC<{ count: number; active: number }> = ({ count, active }) => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.dotsWrap}>
     <View style={styles.dotsPill}>
       {Array.from({ length: count }).map((_, i) => (
@@ -151,7 +174,8 @@ const Dots: React.FC<{ count: number; active: number }> = ({ count, active }) =>
       ))}
     </View>
   </View>
-);
+  );
+};
 
 interface StripProps {
   cardWidth: number;
@@ -162,6 +186,7 @@ interface StripProps {
 
 /** Edge-bleeding horizontal card strip with snapping and page dots. */
 const Strip: React.FC<StripProps> = ({ cardWidth, gap = 12, count, children }) => {
+  const styles = useThemedStyles(createStyles);
   const [active, setActive] = useState(0);
   const step = cardWidth + gap;
   const onEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -233,7 +258,9 @@ const AUDIENCES: Audience[] = [
   },
 ];
 
-export const BuiltForEveryone: React.FC<{ onJoin?: (id: string) => void }> = ({ onJoin }) => (
+export const BuiltForEveryone: React.FC<{ onJoin?: (id: string) => void }> = ({ onJoin }) => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.block}>
     <SectionHeader
       center
@@ -270,13 +297,15 @@ export const BuiltForEveryone: React.FC<{ onJoin?: (id: string) => void }> = ({ 
       </Animated.View>
     ))}
   </View>
-);
+  );
+};
 
 /* -------------------------------------------------------------------------- */
 /* Event ad banner (full bleed, sits above Opportunities)                     */
 /* -------------------------------------------------------------------------- */
 
 export const EventBanner: React.FC<{ onPress?: () => void }> = ({ onPress }) => {
+  const styles = useThemedStyles(createStyles);
   // Explicit screen width, pulled left by the page padding: spans edge to edge on every device
   // (negative margins on both sides left a gap on the right).
   const { width } = useWindowDimensions();
@@ -319,12 +348,14 @@ const OPPORTUNITIES: Opportunity[] = [
   { id: 'o3', title: 'Creative Director', company: 'Interflow Communications', tag: 'Creative', tagColor: RED, tagBg: '#FBE1E3', posted: '3 days ago' },
 ];
 
-const WASH_FLOW: Stops = ['#FBE1E3', '#FFFFFF', '#CDE8F8'];
 
 export const OpportunitiesSection: React.FC<{
   onViewAll?: () => void;
   onApply?: (o: Opportunity) => void;
-}> = ({ onViewAll, onApply }) => (
+}> = ({ onViewAll, onApply }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
+  return (
   <View style={styles.block}>
     <SectionHeader
       tag="AdBazaar"
@@ -339,7 +370,7 @@ export const OpportunitiesSection: React.FC<{
         <View style={styles.opportunity}>
           {i === 0 ? (
             <LinearGradient
-              colors={WASH_FLOW}
+              colors={[theme.washPink, theme.surface, theme.washBlue]}
               start={{ x: 0, y: 0.2 }}
               end={{ x: 1, y: 0.8 }}
               style={StyleSheet.absoluteFill}
@@ -362,7 +393,8 @@ export const OpportunitiesSection: React.FC<{
       </Animated.View>
     ))}
   </View>
-);
+  );
+};
 
 /* -------------------------------------------------------------------------- */
 /* AdGuru: Voices That Shape the Industry                                     */
@@ -393,7 +425,10 @@ const GURU_W = 166;
 export const GurusSection: React.FC<{
   onViewAll?: () => void;
   onBook?: (g: Guru) => void;
-}> = ({ onViewAll, onBook }) => (
+}> = ({ onViewAll, onBook }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
+  return (
   <View style={styles.block}>
     <SectionHeader
       tag="AdGuru"
@@ -408,7 +443,7 @@ export const GurusSection: React.FC<{
         <View key={g.id} style={[styles.guruCard, styles.cardShadow]}>
           {i === 0 ? (
             <LinearGradient
-              colors={['#CDE8F8', '#FFFFFF', '#FBE1E3']}
+              colors={[theme.washBlue, theme.surface, theme.washPink]}
               start={{ x: 0, y: 1 }}
               end={{ x: 1, y: 0 }}
               style={StyleSheet.absoluteFill}
@@ -434,7 +469,8 @@ export const GurusSection: React.FC<{
       ))}
     </Strip>
   </View>
-);
+  );
+};
 
 /* -------------------------------------------------------------------------- */
 /* AdLeaks: What's Happening                                                  */
@@ -462,7 +498,9 @@ const NEWS_W = 236;
 export const HappeningSection: React.FC<{ onReadMore?: () => void; onOpen?: (n: NewsItem) => void }> = ({
   onReadMore,
   onOpen,
-}) => (
+}) => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.block}>
     <SectionHeader
       tag="AdLeaks"
@@ -513,7 +551,8 @@ export const HappeningSection: React.FC<{ onReadMore?: () => void; onOpen?: (n: 
       ))}
     </Strip>
   </View>
-);
+  );
+};
 
 /* -------------------------------------------------------------------------- */
 /* AdMeet: Coming Up                                                          */
@@ -540,7 +579,10 @@ const EVENT_W = 248;
 export const ComingUpSection: React.FC<{ onSeeAll?: () => void; onRegister?: (e: EventItem) => void }> = ({
   onSeeAll,
   onRegister,
-}) => (
+}) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
+  return (
   <View style={styles.block}>
     <SectionHeader
       tag="AdMeet"
@@ -555,7 +597,7 @@ export const ComingUpSection: React.FC<{ onSeeAll?: () => void; onRegister?: (e:
         <View key={e.id} style={[styles.eventCard, styles.cardShadow]}>
           {i === 0 ? (
             <LinearGradient
-              colors={['#FBE1E3', '#FFFFFF', '#CDE8F8']}
+              colors={[theme.washPink, theme.surface, theme.washBlue]}
               start={{ x: 0, y: 1 }}
               end={{ x: 1, y: 0 }}
               style={StyleSheet.absoluteFill}
@@ -579,7 +621,8 @@ export const ComingUpSection: React.FC<{ onSeeAll?: () => void; onRegister?: (e:
       ))}
     </Strip>
   </View>
-);
+  );
+};
 
 /* -------------------------------------------------------------------------- */
 /* AdRead: Latest Sessions                                                    */
@@ -603,7 +646,9 @@ const SESSIONS: Session[] = [
 export const SessionsSection: React.FC<{ onBrowseAll?: () => void; onPlay?: (s: Session) => void }> = ({
   onBrowseAll,
   onPlay,
-}) => (
+}) => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.block}>
     <SectionHeader
       tag="AdRead"
@@ -642,17 +687,25 @@ export const SessionsSection: React.FC<{ onBrowseAll?: () => void; onPlay?: (s: 
       </Animated.View>
     ))}
   </View>
-);
+  );
+};
 
 /* -------------------------------------------------------------------------- */
 /* Final CTA                                                                  */
 /* -------------------------------------------------------------------------- */
 
-export const JoinCta: React.FC<{ onPress?: () => void }> = ({ onPress }) => (
+export const JoinCta: React.FC<{ onPress?: () => void }> = ({ onPress }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
+  return (
   <View style={styles.block}>
     <View style={[styles.cta, styles.cardShadow]}>
       <LinearGradient
-        colors={['#F28B8F', '#FBE9EA', '#FFFFFF', '#E3F1FA', '#7DBFE8']}
+        colors={
+          theme.scheme === 'dark'
+            ? ['#7A2D33', '#3A1D22', '#1A1A1F', '#1B2D3D', '#2C5878']
+            : ['#F28B8F', '#FBE9EA', '#FFFFFF', '#E3F1FA', '#7DBFE8']
+        }
         locations={[0, 0.28, 0.5, 0.72, 1]}
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 0.5 }}
@@ -681,16 +734,18 @@ export const JoinCta: React.FC<{ onPress?: () => void }> = ({ onPress }) => (
       </HapticPressable>
     </View>
   </View>
-);
+  );
+};
 
 /* -------------------------------------------------------------------------- */
 
-const styles = StyleSheet.create({
+const createStyles = (t: AppTheme) =>
+  StyleSheet.create({
   block: {
     marginTop: 0,
   },
   divider: {
-    marginVertical: 30,
+    marginVertical: 20,
     alignItems: 'center',
   },
   dividerLine: {
@@ -708,7 +763,7 @@ const styles = StyleSheet.create({
   },
   cardShadow: {
     ...Shadows.card,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   photo: {
     alignItems: 'center',
@@ -718,22 +773,22 @@ const styles = StyleSheet.create({
   // titles + headers
   title: {
     fontFamily: SERIF,
-    color: INK,
+    color: t.text,
     letterSpacing: -0.3,
   },
   titleAccent: {
-    color: RED,
+    color: t.primary,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 12,
     gap: 12,
   },
   sectionHeaderCenter: {
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   headerText: {
     flex: 1,
@@ -762,13 +817,13 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 13.5,
     fontWeight: '600',
-    color: RED,
+    color: t.primary,
     textDecorationLine: 'underline',
   },
 
   // shared controls
   redButton: {
-    backgroundColor: RED,
+    backgroundColor: t.primary,
     paddingHorizontal: 22,
     paddingVertical: 12,
     alignItems: 'center',
@@ -806,7 +861,7 @@ const styles = StyleSheet.create({
   stripContent: {
     paddingHorizontal: PAGE_PAD,
     paddingTop: 2,
-    paddingBottom: 14,
+    paddingBottom: 8,
   },
   dotsWrap: {
     alignItems: 'center',
@@ -819,26 +874,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     ...Shadows.card,
   },
   dot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#D5D7DB',
+    backgroundColor: withAlpha(t.textMuted, 0.4),
   },
   dotActive: {
     width: 20,
-    backgroundColor: RED,
+    backgroundColor: t.primary,
   },
 
   // built for everyone
   audienceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 18,
-    marginBottom: 30,
+    gap: 14,
+    marginBottom: 20,
   },
   audienceRowReverse: {
     flexDirection: 'row-reverse',
@@ -847,7 +902,7 @@ const styles = StyleSheet.create({
     width: 118,
     height: 148,
     borderRadius: 20,
-    backgroundColor: '#ECEEF2',
+    backgroundColor: t.surfaceAlt,
     ...Shadows.card,
   },
   audiencePhoto: {
@@ -858,25 +913,26 @@ const styles = StyleSheet.create({
   audienceText: {
     flex: 1,
     alignItems: 'flex-start',
-    gap: 8,
+    gap: 6,
   },
   audienceTitle: {
     fontFamily: SERIF,
     fontSize: 20,
     lineHeight: 28,
-    color: INK,
+    color: t.text,
     letterSpacing: -0.3,
   },
   audienceBody: {
     fontSize: 14,
     lineHeight: 22,
-    color: MUTED,
+    color: t.textMuted,
   },
   joinButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: RED,
+    borderRadius: 999,
+    backgroundColor: t.primary,
     paddingHorizontal: 16,
     paddingVertical: 9,
     marginTop: 4,
@@ -892,7 +948,7 @@ const styles = StyleSheet.create({
   eventBanner: {
     marginLeft: -PAGE_PAD,
     overflow: 'hidden',
-    marginBottom: 30,
+    marginBottom: 20,
   },
 
   // opportunities
@@ -901,9 +957,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderRadius: 20,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: t.surface,
     overflow: 'hidden',
   },
   opportunityText: {
@@ -913,22 +969,22 @@ const styles = StyleSheet.create({
   opportunityTitle: {
     fontFamily: SERIF,
     fontSize: 18,
-    color: INK,
+    color: t.text,
     letterSpacing: -0.2,
   },
   opportunityCompany: {
     fontSize: 13.5,
-    color: MUTED,
+    color: t.textMuted,
   },
   opportunityMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 10,
+    marginTop: 8,
   },
   posted: {
     fontSize: 12.5,
-    color: MUTED,
+    color: t.textMuted,
   },
 
   // gurus
@@ -937,7 +993,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 14,
     gap: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     overflow: 'hidden',
     marginBottom: 0,
   },
@@ -959,11 +1015,11 @@ const styles = StyleSheet.create({
   guruName: {
     fontFamily: SERIF,
     fontSize: 16.5,
-    color: INK,
+    color: t.text,
   },
   guruRole: {
     fontSize: 12.5,
-    color: MUTED,
+    color: t.textMuted,
   },
   guruMeta: {
     flexDirection: 'row',
@@ -972,7 +1028,7 @@ const styles = StyleSheet.create({
   },
   years: {
     fontSize: 12,
-    color: MUTED,
+    color: t.textMuted,
   },
 
   // news
@@ -1010,7 +1066,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 14,
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     overflow: 'hidden',
     marginBottom: 0,
   },
@@ -1024,7 +1080,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontFamily: SERIF,
     fontSize: 17,
-    color: INK,
+    color: t.text,
     letterSpacing: -0.2,
   },
   eventPlace: {
@@ -1034,7 +1090,7 @@ const styles = StyleSheet.create({
   },
   eventPlaceText: {
     fontSize: 13,
-    color: MUTED,
+    color: t.textMuted,
   },
 
   // sessions
@@ -1044,7 +1100,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 10,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
   },
   sessionThumb: {
     width: 56,
@@ -1062,17 +1118,17 @@ const styles = StyleSheet.create({
   sessionTitle: {
     fontFamily: SERIF,
     fontSize: 15,
-    color: INK,
+    color: t.text,
   },
   sessionLength: {
     fontSize: 12.5,
-    color: MUTED,
+    color: t.textMuted,
   },
   playButton: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: RED,
+    backgroundColor: t.primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadows.buttonGlow,
@@ -1085,23 +1141,24 @@ const styles = StyleSheet.create({
   cta: {
     borderRadius: 22,
     paddingHorizontal: 22,
-    paddingVertical: 28,
+    paddingVertical: 22,
     alignItems: 'center',
     gap: 12,
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     marginBottom: 0,
   },
   ctaBody: {
     fontSize: 13.5,
     lineHeight: 20,
-    color: '#5F646C',
+    color: t.textSecondary,
     textAlign: 'center',
     marginBottom: 6,
     maxWidth: 260,
   },
   ctaButton: {
-    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    backgroundColor: t.surface,
     paddingHorizontal: 26,
     paddingVertical: 14,
     alignItems: 'center',
@@ -1111,7 +1168,7 @@ const styles = StyleSheet.create({
   ctaButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: INK,
+    color: t.text,
   },
 });
 

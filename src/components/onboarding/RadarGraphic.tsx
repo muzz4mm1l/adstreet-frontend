@@ -5,6 +5,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
+  withSequence,
   withTiming,
   Easing,
   useReducedMotion,
@@ -27,6 +28,9 @@ interface RadarGraphicProps {
  * - Single UI-thread clock driving hardware-composited scale and opacity
  * - Delicate hairline strokes (1.0px) with smooth entrance and boundary dissipation
  */
+const RADAR_PERIOD = 3400;
+const RADAR_EPOCH = Date.now();
+
 export const RadarGraphic: React.FC<RadarGraphicProps> = ({
   size = Math.min(SCREEN_WIDTH * 0.74, 300),
   active = true,
@@ -81,14 +85,15 @@ export const RadarGraphic: React.FC<RadarGraphicProps> = ({
       return;
     }
 
-    // Calm, luxury radar pulse cycle
-    clock.value = withRepeat(
-      withTiming(1, {
-        duration: 3400,
-        easing: Easing.linear,
-      }),
-      -1,
-      false
+    // Calm, luxury radar pulse cycle. The phase is derived from one shared wall clock, so a second
+    // RadarGraphic (e.g. the frozen back-navigation preview and the real screen that replaces it)
+    // is always in the same phase and the swap shows no pop.
+    const phase = ((Date.now() - RADAR_EPOCH) % RADAR_PERIOD) / RADAR_PERIOD;
+    clock.value = phase;
+    clock.value = withSequence(
+      withTiming(1, { duration: RADAR_PERIOD * (1 - phase), easing: Easing.linear }),
+      withTiming(0, { duration: 0 }),
+      withRepeat(withTiming(1, { duration: RADAR_PERIOD, easing: Easing.linear }), -1, false)
     );
 
     // Subtle jewel breathing

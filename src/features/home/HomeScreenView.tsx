@@ -19,7 +19,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  Extrapolation,
+  ZoomIn,
+  ZoomOut,
+  interpolate,
+  useAnimatedReaction,
+  useAnimatedRef,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { HapticPressable } from '@/components/ui/HapticPressable';
 import { SwipeBackContainer } from '@/components/navigation/SwipeBackContainer';
@@ -27,6 +39,7 @@ import { HomeMenu, HomeMenuItem } from './HomeMenu';
 import { BannerCarousel } from './BannerCarousel';
 import { HomeShelf, ShelfItem } from './HomeShelf';
 import { LiquidTabBar, HomeTab } from './LiquidTabBar';
+import { FeedError, HomeSkeleton, OfflineBanner, useHomeFeed } from './HomeStates';
 // import { LockedOverlay } from './LockedOverlay'; // lock overlay disabled for now
 import {
   BuiltForEveryone,
@@ -40,7 +53,9 @@ import {
   SessionsSection,
 } from './HomeSections';
 import { DisplayFont } from '@/constants/fonts';
-import { BrandColors, Radii, Shadows, SurfaceColors } from '@/constants/theme';
+import { BrandColors, Radii, Shadows } from '@/constants/theme';
+import { AppTheme } from '@/theme/colors';
+import { useAppTheme, useThemedStyles } from '@/theme/useAppTheme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 /** Categories that are not available yet get the animated lock overlay. */
@@ -48,6 +63,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // restore the list below and un-comment the <LockedOverlay /> block and its import.
 // const UNLOCKED_CATEGORIES: readonly string[] = ['adbazaar', 'adleaks'];
 const UNLOCKED_CATEGORIES: readonly string[] = ['adbazaar', 'adleaks', 'adbooks', 'admeet', 'adguru', 'adread', 'adpro'];
+const COMPACT_AT = 230; // scroll offset where the slim sticky bar takes over from the header
+const TOP_BUTTON_AT = 700;
 const CARD_GAP = 8;
 const CARD_RADIUS = 12;
 /** Width : height of each card's artwork — rows pair cards of equal ratio so they line up. */
@@ -226,6 +243,41 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
   onMenuSelect,
   onLogout,
 }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
+  const feed = useHomeFeed();
+
+  // Scroll-linked chrome: a slim sticky bar fades in once the big header has scrolled away, and a
+  // back-to-top button appears further down. Scroll position lives in a shared value (UI thread);
+  // React state only flips at the two thresholds.
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollY = useSharedValue(0);
+  const [compactOn, setCompactOn] = useState(false);
+  const [topButtonOn, setTopButtonOn] = useState(false);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  useAnimatedReaction(
+    () => scrollY.value,
+    (y, prev) => {
+      const wasCompact = prev !== null && prev > COMPACT_AT;
+      if (y > COMPACT_AT !== wasCompact) scheduleOnRN(setCompactOn, y > COMPACT_AT);
+      const wasTop = prev !== null && prev > TOP_BUTTON_AT;
+      if (y > TOP_BUTTON_AT !== wasTop) scheduleOnRN(setTopButtonOn, y > TOP_BUTTON_AT);
+    },
+  );
+  const compactStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [COMPACT_AT - 40, COMPACT_AT + 20], [0, 1], Extrapolation.CLAMP),
+    transform: [
+      {
+        translateY: interpolate(scrollY.value, [COMPACT_AT - 40, COMPACT_AT + 20], [-14, 0], Extrapolation.CLAMP),
+      },
+    ],
+  }));
+  const scrollToTop = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
   const insets = useSafeAreaInsets();
   const [menuOpen, setMenuOpen] = useState(false);
   // taps on locked cards, per category: drives the lock's rattle
@@ -385,14 +437,28 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
   return (
     <SwipeBackContainer
       onBack={handleBack}
-      backgroundColor={SurfaceColors.canvas}
+      backgroundColor={theme.canvas}
       renderPrevious={activeTab === 'home' && onBack ? renderPreviousScreen : undefined}>
       <View style={styles.rootContainer}>
         <ScreenStatusBar style="light" />
+        <OfflineBanner top={insets.top + 8} />
 
         {/* Main Scrollable View */}
-        <ScrollView
+        <Animated.ScrollView
+          ref={scrollRef}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
+          // Pull-to-refresh is switched off for now. To bring it back, restore this prop:
+          // refreshControl={
+          // <RefreshControl
+          // refreshing={feed.refreshing}
+          // onRefresh={feed.refresh}
+          // tintColor="#FFFFFF"
+          // colors={[theme.primary]}
+          // progressBackgroundColor={theme.surface}
+          // />
+          // }
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: insets.bottom + 96 },
@@ -565,28 +631,96 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
               ))}
             </View>
 
-            <SectionDivider />
-            <HomeShelf title="Explore market's fresh leaks" items={FRESH_LEAKS} />
-            <SectionDivider />
-            <HomeShelf title="Featured Listings" items={FEATURED_LISTINGS} />
+            {feed.status === 'loading' && (
+              <>
+                <SectionDivider />
+                <HomeSkeleton />
+              </>
+            )}
+            {feed.status === 'error' && (
+              <>
+                <SectionDivider />
+                <FeedError onRetry={feed.retry} />
+              </>
+            )}
+            {feed.status === 'ready' && (
+              <>
+              <SectionDivider />
+              <HomeShelf title="Explore market's fresh leaks" items={FRESH_LEAKS} />
+              <SectionDivider />
+              <HomeShelf title="Featured Listings" items={FEATURED_LISTINGS} />
 
-            <SectionDivider />
-            <BuiltForEveryone />
-            <SectionDivider />
-            <EventBanner />
-            <OpportunitiesSection />
-            <SectionDivider />
-            <GurusSection />
-            <SectionDivider />
-            <HappeningSection />
-            <SectionDivider />
-            <ComingUpSection />
-            <SectionDivider />
-            <SessionsSection />
-            <SectionDivider />
-            <JoinCta />
+              <SectionDivider />
+              <BuiltForEveryone />
+              <SectionDivider />
+              <EventBanner />
+              <OpportunitiesSection />
+              <SectionDivider />
+              <GurusSection />
+              <SectionDivider />
+              <HappeningSection />
+              <SectionDivider />
+              <ComingUpSection />
+              <SectionDivider />
+              <SessionsSection />
+              <SectionDivider />
+              <JoinCta />
+              </>
+            )}
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
+
+        {/* Slim sticky bar (collapsed header) */}
+        <Animated.View
+          pointerEvents={compactOn ? 'auto' : 'none'}
+          style={[styles.compactBar, { paddingTop: Math.max(insets.top, 12) }, compactStyle]}>
+          <View style={styles.compactRow}>
+            <TouchableOpacity
+              onPress={openMenu}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Open menu"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.compactIcon}>
+              <Ionicons name="menu" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+            <View style={styles.compactBrand}>
+              <Image
+                source={require('@/assets/images/splash-logo-clean.png')}
+                style={styles.compactEmblem}
+                contentFit="contain"
+              />
+              <Text style={styles.compactBrandText}>ADSTREET</Text>
+            </View>
+            <TouchableOpacity
+              onPress={onOpenSearch}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Search"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.compactIcon}>
+              <Ionicons name="search" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        {/* Back to top */}
+        {topButtonOn && (
+          <Animated.View
+            entering={ZoomIn.duration(200)}
+            exiting={ZoomOut.duration(160)}
+            style={[styles.topButtonWrap, { bottom: Math.max(insets.bottom, 12) + 76 }]}>
+            <HapticPressable
+              haptic="none"
+              borderRadius={22}
+              onPress={scrollToTop}
+              accessibilityRole="button"
+              accessibilityLabel="Back to top"
+              style={styles.topButton}>
+              <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
+            </HapticPressable>
+          </Animated.View>
+        )}
 
         {/* 3. Floating Bottom Tab Bar with Liquid Glass */}
         <View
@@ -606,13 +740,68 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (t: AppTheme) =>
+  StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: SurfaceColors.canvas,
+    backgroundColor: t.canvas,
   },
   scrollContent: {
     flexGrow: 1,
+  },
+  compactBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#A81218',
+    paddingBottom: 10,
+    paddingHorizontal: 20,
+    zIndex: 20,
+    ...Shadows.floatingBar,
+  },
+  compactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 40,
+  },
+  compactIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  compactEmblem: {
+    width: 22,
+    height: 22,
+  },
+  compactBrandText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+  },
+  topButtonWrap: {
+    position: 'absolute',
+    right: 20,
+    zIndex: 15,
+  },
+  topButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: t.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.buttonGlow,
   },
   headerContainer: {
     borderBottomLeftRadius: 32,
@@ -777,7 +966,7 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 26,
     lineHeight: 32,
-    color: '#111827',
+    color: t.text,
     fontFamily: DisplayFont.bold,
     letterSpacing: -0.2,
     marginBottom: 12,
@@ -793,7 +982,7 @@ const styles = StyleSheet.create({
   },
   sectionDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(0, 0, 0, 0.14)',
+    backgroundColor: t.divider,
     marginTop: 10,
     marginBottom: 18,
   },

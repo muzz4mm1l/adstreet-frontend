@@ -4,7 +4,9 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { HapticPressable } from '@/components/ui/HapticPressable';
-import { Shadows, SurfaceColors } from '@/constants/theme';
+import { BrandColors, Shadows } from '@/constants/theme';
+import { AppTheme } from '@/theme/colors';
+import { useAppTheme, useThemedStyles } from '@/theme/useAppTheme';
 
 export interface JobListing {
   id: string;
@@ -66,7 +68,7 @@ export const POPULAR_JOBS: JobListing[] = [
 ];
 
 const BLUE = '#3B82F6';
-const RED = '#E8222A';
+const RED = BrandColors.primary;
 
 interface PopularJobsProps {
   jobs?: JobListing[];
@@ -74,7 +76,9 @@ interface PopularJobsProps {
 }
 
 /** "Popular Jobs" list: image, title, category, duration, budget pill, validity and a Details CTA. */
-export const PopularJobs: React.FC<PopularJobsProps> = ({ jobs = POPULAR_JOBS, onPressJob }) => (
+export const PopularJobs: React.FC<PopularJobsProps> = ({ jobs = POPULAR_JOBS, onPressJob }) => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.section}>
     <Text style={styles.heading} accessibilityRole="header">
       Popular Jobs
@@ -85,9 +89,13 @@ export const PopularJobs: React.FC<PopularJobsProps> = ({ jobs = POPULAR_JOBS, o
       </Animated.View>
     ))}
   </View>
-);
+  );
+};
 
-const JobCard: React.FC<{ job: JobListing; onPress: () => void }> = ({ job, onPress }) => (
+const JobCard: React.FC<{ job: JobListing; onPress: () => void }> = ({ job, onPress }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
+  return (
   <View style={styles.card}>
     <View style={styles.top}>
       <View style={styles.imageFrame}>
@@ -95,7 +103,7 @@ const JobCard: React.FC<{ job: JobListing; onPress: () => void }> = ({ job, onPr
           <Image source={job.image} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
         ) : (
           <View style={styles.placeholder}>
-            <Ionicons name="image-outline" size={26} color="#B6BAC3" />
+            <Ionicons name="image-outline" size={26} color={theme.textMuted} />
           </View>
         )}
       </View>
@@ -105,13 +113,13 @@ const JobCard: React.FC<{ job: JobListing; onPress: () => void }> = ({ job, onPr
           {job.title}
         </Text>
         <View style={styles.metaRow}>
-          <Ionicons name="apps-outline" size={14} color="#9AA0A6" />
+          <Ionicons name="apps-outline" size={14} color={theme.textMuted} />
           <Text style={styles.metaText} numberOfLines={1}>
             {job.category}
           </Text>
         </View>
         <View style={styles.metaRow}>
-          <Ionicons name="calendar-outline" size={14} color="#9AA0A6" />
+          <Ionicons name="calendar-outline" size={14} color={theme.textMuted} />
           <Text style={styles.metaText} numberOfLines={1}>
             {job.duration}
           </Text>
@@ -133,14 +141,14 @@ const JobCard: React.FC<{ job: JobListing; onPress: () => void }> = ({ job, onPr
 
     <View style={styles.footer}>
       <View style={styles.footerItem}>
-        <Ionicons name="calendar-clear-outline" size={15} color="#6B7280" />
+        <Ionicons name="calendar-clear-outline" size={15} color={theme.textMuted} />
         <View>
           <Text style={styles.footerLabel}>Valid till</Text>
           <Text style={styles.footerValue}>{job.validTill}</Text>
         </View>
       </View>
       <View style={styles.footerItem}>
-        <Ionicons name="time-outline" size={15} color="#6B7280" />
+        <Ionicons name="time-outline" size={15} color={theme.textMuted} />
         <View>
           <Text style={styles.footerLabel}>Duration</Text>
           <Text style={styles.footerValue}>{job.duration}</Text>
@@ -157,9 +165,11 @@ const JobCard: React.FC<{ job: JobListing; onPress: () => void }> = ({ job, onPr
       </HapticPressable>
     </View>
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const createStyles = (t: AppTheme) =>
+  StyleSheet.create({
   section: {
     paddingHorizontal: 20,
   },
@@ -167,16 +177,16 @@ const styles = StyleSheet.create({
     fontSize: 18.0,
     lineHeight: 27,
     fontWeight: '600',
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     marginBottom: 14,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     borderRadius: 14,
     marginBottom: 16,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0, 0, 0, 0.10)',
+    borderColor: t.border,
     ...Shadows.card,
   },
   top: {
@@ -189,7 +199,7 @@ const styles = StyleSheet.create({
     height: 138,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#ECEEF2',
+    backgroundColor: t.surfaceAlt,
   },
   placeholder: {
     flex: 1,
@@ -204,7 +214,7 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     lineHeight: 22,
     fontWeight: '700',
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     marginBottom: 8,
   },
   metaRow: {
@@ -216,7 +226,7 @@ const styles = StyleSheet.create({
   metaText: {
     flex: 1,
     fontSize: 13.5,
-    color: '#4B5563',
+    color: t.textSecondary,
   },
   budgetRow: {
     flexDirection: 'row',
@@ -226,7 +236,7 @@ const styles = StyleSheet.create({
   },
   budgetLabel: {
     fontSize: 13.5,
-    color: '#374151',
+    color: t.text,
   },
   budgetPill: {
     backgroundColor: BLUE,
@@ -243,7 +253,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     right: 0,
-    backgroundColor: RED,
+    backgroundColor: t.primary,
     paddingHorizontal: 14,
     paddingVertical: 4,
     borderBottomLeftRadius: 10,
@@ -260,7 +270,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0, 0, 0, 0.14)',
+    borderTopColor: t.border,
   },
   footerItem: {
     flexDirection: 'row',
@@ -269,15 +279,15 @@ const styles = StyleSheet.create({
   },
   footerLabel: {
     fontSize: 12.0,
-    color: '#6B7280',
+    color: t.textMuted,
   },
   footerValue: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: SurfaceColors.textPrimary,
+    color: t.text,
   },
   detailsButton: {
-    backgroundColor: RED,
+    backgroundColor: t.primary,
     paddingHorizontal: 22,
     paddingVertical: 9,
     alignItems: 'center',

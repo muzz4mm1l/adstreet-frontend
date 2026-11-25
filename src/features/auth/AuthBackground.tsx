@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, StyleSheet, ViewProps, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SurfaceColors } from '@/constants/theme';
+import { AppTheme } from '@/theme/colors';
+import { useAppTheme, useThemedStyles } from '@/theme/useAppTheme';
 
 interface AuthBackgroundProps extends ViewProps {
   children?: React.ReactNode;
@@ -19,6 +20,8 @@ export const AuthBackground: React.FC<AuthBackgroundProps> = ({
   style,
   ...props
 }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
   const { width: windowWidth } = useWindowDimensions();
 
   const topCurveSize = Math.max(windowWidth * 0.92, 340);
@@ -29,7 +32,7 @@ export const AuthBackground: React.FC<AuthBackgroundProps> = ({
     <View style={[styles.container, style]} {...props}>
       {/* 1. Base Ambient Top Wash */}
       <LinearGradient
-        colors={['#FCE5E8', '#FCECEE', '#FDF5F6', SurfaceColors.canvas]}
+        colors={theme.scheme === 'dark' ? ['#2A1316', '#221215', '#181214', theme.canvas] : ['#FCE5E8', '#FCECEE', '#FDF5F6', theme.canvas]}
         locations={[0, 0.28, 0.58, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -51,7 +54,7 @@ export const AuthBackground: React.FC<AuthBackgroundProps> = ({
           },
         ]}>
         <LinearGradient
-          colors={['#FCDDE1', '#FCECEE', 'rgba(255, 255, 255, 0)']}
+          colors={theme.scheme === 'dark' ? ['#3A1B1F', '#26151A', 'rgba(15, 15, 18, 0)'] : ['#FCDDE1', '#FCECEE', 'rgba(255, 255, 255, 0)']}
           locations={[0, 0.5, 1]}
           start={{ x: 0.25, y: 0.2 }}
           end={{ x: 0.85, y: 0.9 }}
@@ -74,7 +77,7 @@ export const AuthBackground: React.FC<AuthBackgroundProps> = ({
           },
         ]}>
         <LinearGradient
-          colors={['rgba(252, 224, 229, 0.72)', 'rgba(255, 255, 255, 0)']}
+          colors={theme.scheme === 'dark' ? ['rgba(90, 30, 38, 0.55)', 'rgba(15, 15, 18, 0)'] : ['rgba(252, 224, 229, 0.72)', 'rgba(255, 255, 255, 0)']}
           locations={[0, 1]}
           start={{ x: 0.2, y: 0.2 }}
           end={{ x: 0.85, y: 0.85 }}
@@ -96,7 +99,7 @@ export const AuthBackground: React.FC<AuthBackgroundProps> = ({
           },
         ]}>
         <LinearGradient
-          colors={['rgba(252, 226, 231, 0.6)', 'rgba(255, 255, 255, 0)']}
+          colors={theme.scheme === 'dark' ? ['rgba(80, 28, 36, 0.5)', 'rgba(15, 15, 18, 0)'] : ['rgba(252, 226, 231, 0.6)', 'rgba(255, 255, 255, 0)']}
           locations={[0, 1]}
           start={{ x: 0.3, y: 0.3 }}
           end={{ x: 0.9, y: 0.9 }}
@@ -118,7 +121,7 @@ export const AuthBackground: React.FC<AuthBackgroundProps> = ({
           },
         ]}>
         <LinearGradient
-          colors={['#FCDFE3', '#FCEEEF', 'rgba(255, 255, 255, 0)']}
+          colors={theme.scheme === 'dark' ? ['#341A1E', '#241519', 'rgba(15, 15, 18, 0)'] : ['#FCDFE3', '#FCEEEF', 'rgba(255, 255, 255, 0)']}
           locations={[0, 0.5, 1]}
           start={{ x: 0.4, y: 0.4 }}
           end={{ x: 0.9, y: 0.9 }}
@@ -131,10 +134,11 @@ export const AuthBackground: React.FC<AuthBackgroundProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (t: AppTheme) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: SurfaceColors.canvas,
+    backgroundColor: t.canvas,
     overflow: 'hidden',
   },
   curveBase: {

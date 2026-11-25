@@ -292,6 +292,7 @@ const styles = StyleSheet.create({
     borderRadius: LENS_HEIGHT / 2,
     backgroundColor: '#FFFFFF',
     ...Shadows.card,
+    ...Platform.select({ android: { elevation: 5 } }),
   },
   slot: {
     position: 'absolute',

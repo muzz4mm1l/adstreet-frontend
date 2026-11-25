@@ -4,7 +4,8 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { HapticPressable } from '@/components/ui/HapticPressable';
-import { SurfaceColors } from '@/constants/theme';
+import { AppTheme } from '@/theme/colors';
+import { useAppTheme, useThemedStyles } from '@/theme/useAppTheme';
 
 export interface ShelfItem {
   id: string;
@@ -23,7 +24,10 @@ const CARD_WIDTH = 150;
 const IMAGE_ASPECT = 1.72;
 
 /** Titled horizontal shelf of image cards with a caption underneath (fresh leaks, listings…). */
-export const HomeShelf: React.FC<HomeShelfProps> = ({ title, items, onPressItem }) => (
+export const HomeShelf: React.FC<HomeShelfProps> = ({ title, items, onPressItem }) => {
+  const styles = useThemedStyles(createStyles);
+  const theme = useAppTheme();
+  return (
   <View style={styles.section}>
     <Text style={styles.heading} accessibilityRole="header">
       {title}
@@ -49,7 +53,7 @@ export const HomeShelf: React.FC<HomeShelfProps> = ({ title, items, onPressItem 
                 <Image source={item.image} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
               ) : (
                 <View style={styles.placeholder}>
-                  <Ionicons name="image-outline" size={22} color="#B6BAC3" />
+                  <Ionicons name="image-outline" size={22} color={theme.textMuted} />
                 </View>
               )}
             </View>
@@ -61,9 +65,11 @@ export const HomeShelf: React.FC<HomeShelfProps> = ({ title, items, onPressItem 
       ))}
     </ScrollView>
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const createStyles = (t: AppTheme) =>
+  StyleSheet.create({
   section: {
     marginHorizontal: -20, // bleed to the screen edge so cards scroll off-screen
   },
@@ -71,7 +77,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 27,
     fontWeight: '600',
-    color: SurfaceColors.textPrimary,
+    color: t.text,
     paddingHorizontal: 20,
     marginBottom: 12,
   },
@@ -87,9 +93,9 @@ const styles = StyleSheet.create({
     aspectRatio: IMAGE_ASPECT,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#ECEEF2',
+    backgroundColor: t.surfaceAlt,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0, 0, 0, 0.35)',
+    borderColor: t.border,
   },
   placeholder: {
     flex: 1,
@@ -97,11 +103,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   caption: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 14.5,
     lineHeight: 20,
     fontWeight: '600',
     textAlign: 'center',
-    color: SurfaceColors.textPrimary,
+    color: t.text,
   },
 });
