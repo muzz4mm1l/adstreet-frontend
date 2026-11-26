@@ -80,6 +80,9 @@ export interface SwipeBackContainerProps {
    * edge swipe is disabled.
    */
   renderPrevious?: () => React.ReactNode;
+  /** The previous screen is already mounted right underneath (overlay pages): no preview copy is
+   *  built, so the slide starts instantly and the real screen shows through. */
+  previousMounted?: boolean;
   /** Opaque layer colour so the previous screen never shows through transparent areas. */
   backgroundColor?: string;
   /** Set false where an edge swipe would fight another horizontal gesture (e.g. a pager). */
@@ -118,6 +121,7 @@ const ActiveSwipeBackContainer: React.FC<SwipeBackContainerProps> = ({
   onBack,
   enabled = true,
   renderPrevious,
+  previousMounted = false,
   backgroundColor = '#FAFAFA',
   gestureEnabled = true,
   resetKey,
@@ -146,12 +150,13 @@ const ActiveSwipeBackContainer: React.FC<SwipeBackContainerProps> = ({
 
   // Latest props for BackHandler / worklet callbacks, so they never go stale (e.g. after a
   // window resize on foldables / split screen).
-  const latest = useRef({ onBack, renderPrevious, reduceMotion, width: W });
+  const latest = useRef({ onBack, renderPrevious, reduceMotion, width: W, previousMounted });
   useEffect(() => {
-    latest.current = { onBack, renderPrevious, reduceMotion, width: W };
+    latest.current = { onBack, renderPrevious, reduceMotion, width: W, previousMounted };
   });
 
   const showPeek = (visible: boolean) => {
+    if (visible && latest.current.previousMounted) return; // real screen is underneath already
     if (visible && peekingRef.current) return; // already showing the captured preview
     peekingRef.current = visible;
     setPeek(visible ? { node: latest.current.renderPrevious?.() ?? null } : null);
@@ -200,6 +205,7 @@ const ActiveSwipeBackContainer: React.FC<SwipeBackContainerProps> = ({
       // Nothing slid away (e.g. a forward navigation): just make sure we are at rest.
       x.value = 0;
       locked.value = 0;
+      if (peekingRef.current) showPeek(false); // the warm preview is for the old step: rebuild
       return;
     }
 
@@ -224,6 +230,31 @@ const ActiveSwipeBackContainer: React.FC<SwipeBackContainerProps> = ({
   useEffect(() => {
     resetLayers();
   }, [resetKey]);
+
+  // Pre-warm: build the frozen preview in the background once the screen has settled, so a back
+  // press (or swipe) starts sliding on the very next frame instead of waiting for the previous
+  // screen to mount. It is rebuilt after every navigation / dismissal.
+  const hasPrevious = !!renderPrevious && !previousMounted && !reduceMotion;
+  useEffect(() => {
+    if (peek || !hasPrevious) return;
+    let cancelled = false;
+    let f1 = 0;
+    let f2 = 0;
+    // wait for entrance animations to finish so warming never competes with them
+    const task = setTimeout(() => {
+      f1 = requestAnimationFrame(() => {
+        f2 = requestAnimationFrame(() => {
+          if (!cancelled && !locked.value && !peekingRef.current) showPeek(true);
+        });
+      });
+    }, 450);
+    return () => {
+      cancelled = true;
+      clearTimeout(task);
+      cancelAnimationFrame(f1);
+      cancelAnimationFrame(f2);
+    };
+  }, [peek, hasPrevious, resetKey]);
 
   const commit = (source: BackSource, slid: boolean) => {
     if (!alive.current) return;
@@ -272,7 +303,7 @@ const ActiveSwipeBackContainer: React.FC<SwipeBackContainerProps> = ({
     // Respond to the press immediately; the transition itself takes ~300ms.
     Keyboard.dismiss();
     Haptics.selectionAsync().catch(() => {});
-    if (peekingRef.current) {
+    if (peekingRef.current || latest.current.previousMounted) {
       startPendingSlide();
     } else {
       showPeek(true);
@@ -374,7 +405,7 @@ const ActiveSwipeBackContainer: React.FC<SwipeBackContainerProps> = ({
   }));
 
   return (
-    <View style={[styles.fill, { backgroundColor }]}>
+    <View style={[styles.fill, previousMounted ? null : { backgroundColor }]}>
       {peek ? (
         <Animated.View
           pointerEvents="none"

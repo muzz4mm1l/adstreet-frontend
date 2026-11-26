@@ -38,8 +38,12 @@ import { SwipeBackContainer } from '@/components/navigation/SwipeBackContainer';
 import { HomeMenu, HomeMenuItem } from './HomeMenu';
 import { BannerCarousel } from './BannerCarousel';
 import { HomeShelf, ShelfItem } from './HomeShelf';
-import { LiquidTabBar, HomeTab } from './LiquidTabBar';
+import type { HomeTab } from './LiquidTabBar';
+import { HomeTopBar } from './HomeTopBar';
 import { FeedError, HomeSkeleton, OfflineBanner, useHomeFeed } from './HomeStates';
+import { GlobalSearchView } from '@/features/search/GlobalSearchView';
+import { JobPostScreenKey, PostJobFlow } from '@/features/jobpost/PostJobFlow';
+import { JobListing } from '@/features/adbazaar/PopularJobs';
 // import { LockedOverlay } from './LockedOverlay'; // lock overlay disabled for now
 import {
   BuiltForEveryone,
@@ -230,6 +234,18 @@ interface HomeScreenViewProps {
   onMenuSelect?: (item: HomeMenuItem) => void;
   /** Called after the user confirms "Log out" in the side menu. */
   onLogout?: () => void;
+  /** Initial active tab (e.g. 'search' for dev deep links). */
+  initialTab?: HomeTab;
+  /** Initial screen inside the '+' Post a Job flow (used for dev deep links). */
+  initialJobStep?: JobPostScreenKey;
+  /** Switch tab from outside (floating bar tapped on an inner page). `n` changes on every request. */
+  /** Controlled active tab + change handler (the app shell owns the floating tab bar). */
+  tab?: HomeTab;
+  onTabChange?: (tab: HomeTab) => void;
+  /** Opens job details when user selects a job from Global Search. */
+  onPressJob?: (job: JobListing) => void;
+  /** Opens full AdBazaar page from Search's View All action. */
+  onOpenAdBazaar?: () => void;
 }
 
 export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
@@ -242,6 +258,12 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
   renderPreviousScreen,
   onMenuSelect,
   onLogout,
+  initialTab = 'home',
+  initialJobStep,
+  tab: tabProp,
+  onTabChange,
+  onPressJob,
+  onOpenAdBazaar,
 }) => {
   const styles = useThemedStyles(createStyles);
   const theme = useAppTheme();
@@ -275,7 +297,7 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
     ],
   }));
   const scrollToTop = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
   const insets = useSafeAreaInsets();
@@ -287,7 +309,7 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
       onSelectCategory?.(cat);
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => { });
     setLockPings((prev) => ({ ...prev, [cat.id]: (prev[cat.id] ?? 0) + 1 }));
   };
 
@@ -315,10 +337,20 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
       ]);
     }, 320);
   };
-  const [activeTab, setActiveTab] = useState<HomeTab>('home');
+  const [internalTab, setInternalTab] = useState<HomeTab>(initialTab);
+  const activeTab = tabProp ?? internalTab;
+  const setActiveTab = (next: HomeTab) => {
+    setInternalTab(next);
+    onTabChange?.(next);
+  };
   const handleTabPress = (tab: 'home' | 'chat' | 'add' | 'notifications' | 'search') => {
     Haptics.selectionAsync().catch(() => { });
     setActiveTab(tab);
+  };
+  const openGlobalSearch = () => {
+    Haptics.selectionAsync().catch(() => { });
+    setActiveTab('search');
+    onOpenSearch?.();
   };
 
   // The container plays the back haptic. From another tab, back just returns to the Home tab
@@ -440,294 +472,280 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
       backgroundColor={theme.canvas}
       renderPrevious={activeTab === 'home' && onBack ? renderPreviousScreen : undefined}>
       <View style={styles.rootContainer}>
-        <ScreenStatusBar style="light" />
-        <OfflineBanner top={insets.top + 8} />
+        <ScreenStatusBar
+          style={activeTab === 'search' || activeTab === 'add' ? theme.statusBar : 'light'}
+        />
+        <View style={styles.blurTarget}>
+          <OfflineBanner top={insets.top + 8} />
 
-        {/* Main Scrollable View */}
-        <Animated.ScrollView
-          ref={scrollRef}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={false}
-          // Pull-to-refresh is switched off for now. To bring it back, restore this prop:
-          // refreshControl={
-          // <RefreshControl
-          // refreshing={feed.refreshing}
-          // onRefresh={feed.refresh}
-          // tintColor="#FFFFFF"
-          // colors={[theme.primary]}
-          // progressBackgroundColor={theme.surface}
-          // />
-          // }
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: insets.bottom + 96 },
-          ]}>
-          {/* 1. Deep Crimson Luxury Header */}
-          <LinearGradient
-            colors={['#800E13', '#A81218', '#C9181F', '#E31E24']}
-            locations={[0, 0.35, 0.7, 1]}
-            start={{ x: 0.2, y: 0 }}
-            end={{ x: 0.8, y: 1 }}
-            style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) }]}>
-            {/* soft light blooms give the flat crimson depth */}
-            <View pointerEvents="none" style={styles.glowClip}>
-              <View style={styles.glowTopRight} />
-              <View style={styles.glowBottomLeft} />
+          {/* Main Scrollable View */}
+          <Animated.ScrollView
+            ref={scrollRef}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={false}
+            // Pull-to-refresh is switched off for now. To bring it back, restore this prop:
+            // refreshControl={
+            // <RefreshControl
+            // refreshing={feed.refreshing}
+            // onRefresh={feed.refresh}
+            // tintColor="#FFFFFF"
+            // colors={[theme.primary]}
+            // progressBackgroundColor={theme.surface}
+            // />
+            // }
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: insets.bottom + 96 },
+            ]}>
+            {/* 1. Deep Crimson Luxury Header (linear-gradient(52.54deg, #EC2029 0%, #6C2326 100%)) */}
+            <LinearGradient
+              colors={['#EC2029', '#6C2326']}
+              locations={[0, 1]}
+              start={{ x: 0, y: 0.88 }}
+              end={{ x: 1, y: 0.12 }}
+              style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) }]}>
+
+              {/* Top Bar: Menu, Brand Badge, Actions (shared with Global Search) */}
+              <HomeTopBar
+                onOpenMenu={openMenu}
+                onOpenSearch={openGlobalSearch}
+                onOpenNotifications={onOpenNotifications}
+              />
+
+              {/* Hero banner carousel: coverflow with parallax and timed progress pill */}
+              <BannerCarousel banners={HEADER_BANNERS} />
+            </LinearGradient>
+
+            {/* 2. Categories Section */}
+            <View style={styles.bodySection}>
+              <Text style={styles.sectionHeading}>Categories</Text>
+
+              {/* 2-Column Grid */}
+              <View style={styles.gridContainer}>
+                {CATEGORIES.map((cat, idx) => (
+                  <Animated.View
+                    key={cat.id}
+                    entering={FadeInDown.duration(400).delay(idx * 60)}
+                    style={cat.type === 'adpro' ? styles.cardWrapperWide : styles.cardWrapper}>
+                    <HapticPressable
+                      haptic={UNLOCKED_CATEGORIES.includes(cat.type) ? 'light' : 'none'}
+                      borderRadius={CARD_RADIUS}
+                      onPress={() => handleCategoryPress(cat)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${cat.name} - ${cat.subtitle}${UNLOCKED_CATEGORIES.includes(cat.type) ? '' : ', locked'
+                        }`}
+                      style={[
+                        cat.type === 'adpro' ? styles.categoryCardWide : styles.categoryCard,
+                        { aspectRatio: CARD_ASPECT[cat.type], backgroundColor: cat.bgColor },
+                      ]}>
+                      {cat.type === 'adbazaar' ? (
+                        // The ADBAZAAR card artwork (striped awning, dual-tone badge, and subtitle)
+                        <Image
+                          source={require('@/assets/images/categories/adbazaar-card.webp')}
+                          style={StyleSheet.absoluteFill}
+                          contentFit="cover"
+                        />
+                      ) : cat.type === 'adleaks' ? (
+                        // The ADLEAKS card artwork (world map silhouette, newspaper, dual-tone badge, and subtitle)
+                        <Image
+                          source={require('@/assets/images/categories/adleaks-card.webp')}
+                          style={StyleSheet.absoluteFill}
+                          contentFit="cover"
+                        />
+                      ) : cat.type === 'adbooks' ? (
+                        // The ADBOOKS card artwork (contact icons, dual-tone badge, and subtitle)
+                        <Image
+                          source={require('@/assets/images/categories/adbooks-card.webp')}
+                          style={StyleSheet.absoluteFill}
+                          contentFit="cover"
+                        />
+                      ) : cat.type === 'admeet' ? (
+                        // The ADMEET card artwork (people networking illustration, badge, and subtitle)
+                        <Image
+                          source={require('@/assets/images/categories/admeet-card.webp')}
+                          style={StyleSheet.absoluteFill}
+                          contentFit="cover"
+                        />
+                      ) : cat.type === 'adpro' ? (
+                        // Full-width ADPRO SERVICES banner card (logo + tagline artwork)
+                        <Image
+                          source={require('@/assets/images/categories/adpro-card.webp')}
+                          style={StyleSheet.absoluteFill}
+                          contentFit="cover"
+                        />
+                      ) : cat.type === 'adguru' || cat.type === 'adread' ? (
+                        // The ADGURU / ADREAD cards are ready-made artwork (logo + tagline): show it whole.
+                        <Image
+                          source={
+                            cat.type === 'adguru'
+                              ? require('@/assets/images/adguru-card.png')
+                              : require('@/assets/images/adread-card.png')
+                          }
+                          style={StyleSheet.absoluteFill}
+                          contentFit="contain"
+                        />
+                      ) : (
+                        <>
+                          {/* Top Graphic Illustration Area */}
+                          <View style={styles.cardGraphicArea}>
+                            {renderCategoryGraphic(cat.type)}
+                          </View>
+
+                          {/* Category Name Badge */}
+                          <View style={styles.categoryBadge}>
+                            <Text style={[styles.categoryBadgeText, { color: cat.badgeTextColor }]}>
+                              {cat.name}
+                            </Text>
+                          </View>
+
+                          {/* Subtitle */}
+                          <Text style={styles.cardSubtitle} numberOfLines={1}>
+                            {cat.subtitle}
+                          </Text>
+                        </>
+                      )}
+                      {/* Lock overlay disabled for now:
+                    {!UNLOCKED_CATEGORIES.includes(cat.type) && (
+                      <LockedOverlay ping={lockPings[cat.id] ?? 0} />
+                    )}
+                    */}
+                    </HapticPressable>
+                  </Animated.View>
+                ))}
+              </View>
+
+              {feed.status === 'loading' && (
+                <>
+                  <SectionDivider />
+                  <HomeSkeleton />
+                </>
+              )}
+              {feed.status === 'error' && (
+                <>
+                  <SectionDivider />
+                  <FeedError onRetry={feed.retry} />
+                </>
+              )}
+              {feed.status === 'ready' && (
+                <>
+                  <SectionDivider />
+                  <HomeShelf title="Explore market's fresh leaks" items={FRESH_LEAKS} />
+                  <SectionDivider />
+                  <HomeShelf title="Featured Listings" items={FEATURED_LISTINGS} />
+
+                  <SectionDivider />
+                  <BuiltForEveryone />
+                  <SectionDivider />
+                  <EventBanner />
+                  <OpportunitiesSection />
+                  <SectionDivider />
+                  <GurusSection />
+                  <SectionDivider />
+                  <HappeningSection />
+                  <SectionDivider />
+                  <ComingUpSection />
+                  <SectionDivider />
+                  <SessionsSection />
+                  <SectionDivider />
+                  <JoinCta />
+                </>
+              )}
             </View>
+          </Animated.ScrollView>
 
-            {/* Top Bar: Menu, Brand Badge, Actions */}
-            <View style={styles.topBar}>
-              {/* Hamburger Button */}
+          {/* Slim sticky bar (collapsed header) */}
+          <Animated.View
+            pointerEvents={compactOn ? 'auto' : 'none'}
+            style={[styles.compactBar, { paddingTop: Math.max(insets.top, 12) }, compactStyle]}>
+            <LinearGradient
+              colors={['#EC2029', '#6C2326']}
+              locations={[0, 1]}
+              start={{ x: 0, y: 0.88 }}
+              end={{ x: 1, y: 0.12 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.compactRow}>
               <TouchableOpacity
                 onPress={openMenu}
                 activeOpacity={0.75}
                 accessibilityRole="button"
                 accessibilityLabel="Open menu"
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                style={styles.iconButton}>
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.compactIcon}>
                 <Ionicons name="menu" size={22} color="#FFFFFF" />
               </TouchableOpacity>
-
-              {/* ADSTREET Logo Badge */}
-              <View style={styles.brandBadge}>
+              <View style={styles.compactBrand}>
                 <Image
                   source={require('@/assets/images/splash-logo-clean.png')}
-                  style={styles.brandEmblem}
+                  style={styles.compactEmblem}
                   contentFit="contain"
                 />
-                <Text style={styles.brandText}>ADSTREET</Text>
+                <Text style={styles.compactBrandText}>ADSTREET</Text>
               </View>
-
-              {/* Right Action Icons Group */}
-              <View style={styles.rightActionsGroup}>
-                {/* Search */}
-                <TouchableOpacity
-                  onPress={onOpenSearch}
-                  activeOpacity={0.75}
-                  style={styles.iconButton}>
-                  <Ionicons name="search" size={17} color="#FFFFFF" />
-                </TouchableOpacity>
-
-                {/* Notification with Badge Dot */}
-                <TouchableOpacity
-                  onPress={onOpenNotifications}
-                  activeOpacity={0.75}
-                  style={styles.iconButton}>
-                  <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-                  <View style={styles.notificationDot} />
-                </TouchableOpacity>
-
-                {/* Coins Pill */}
-                <View style={styles.coinPill}>
-                  <View style={styles.coinIconWrapper}>
-                    <Text style={styles.coinLetter}>A</Text>
-                  </View>
-                  <Text style={styles.coinCount}>15</Text>
-                </View>
-              </View>
+              <TouchableOpacity
+                onPress={openGlobalSearch}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Search"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.compactIcon}>
+                <Ionicons name="search" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
-
-            {/* Hero banner carousel: coverflow with parallax and timed progress pill */}
-            <BannerCarousel banners={HEADER_BANNERS} />
-          </LinearGradient>
-
-          {/* 2. Categories Section */}
-          <View style={styles.bodySection}>
-            <Text style={styles.sectionHeading}>Categories</Text>
-
-            {/* 2-Column Grid */}
-            <View style={styles.gridContainer}>
-              {CATEGORIES.map((cat, idx) => (
-                <Animated.View
-                  key={cat.id}
-                  entering={FadeInDown.duration(400).delay(idx * 60)}
-                  style={cat.type === 'adpro' ? styles.cardWrapperWide : styles.cardWrapper}>
-                  <HapticPressable
-                    haptic={UNLOCKED_CATEGORIES.includes(cat.type) ? 'light' : 'none'}
-                    borderRadius={CARD_RADIUS}
-                    onPress={() => handleCategoryPress(cat)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${cat.name} - ${cat.subtitle}${
-                      UNLOCKED_CATEGORIES.includes(cat.type) ? '' : ', locked'
-                    }`}
-                    style={[
-                      cat.type === 'adpro' ? styles.categoryCardWide : styles.categoryCard,
-                      { aspectRatio: CARD_ASPECT[cat.type], backgroundColor: cat.bgColor },
-                    ]}>
-                    {cat.type === 'adbazaar' ? (
-                      // The ADBAZAAR card artwork (striped awning, dual-tone badge, and subtitle)
-                      <Image
-                        source={require('@/assets/images/categories/adbazaar-card.webp')}
-                        style={StyleSheet.absoluteFill}
-                        contentFit="cover"
-                      />
-                    ) : cat.type === 'adleaks' ? (
-                      // The ADLEAKS card artwork (world map silhouette, newspaper, dual-tone badge, and subtitle)
-                      <Image
-                        source={require('@/assets/images/categories/adleaks-card.webp')}
-                        style={StyleSheet.absoluteFill}
-                        contentFit="cover"
-                      />
-                    ) : cat.type === 'adbooks' ? (
-                      // The ADBOOKS card artwork (contact icons, dual-tone badge, and subtitle)
-                      <Image
-                        source={require('@/assets/images/categories/adbooks-card.webp')}
-                        style={StyleSheet.absoluteFill}
-                        contentFit="cover"
-                      />
-                    ) : cat.type === 'admeet' ? (
-                      // The ADMEET card artwork (people networking illustration, badge, and subtitle)
-                      <Image
-                        source={require('@/assets/images/categories/admeet-card.webp')}
-                        style={StyleSheet.absoluteFill}
-                        contentFit="cover"
-                      />
-                    ) : cat.type === 'adpro' ? (
-                      // Full-width ADPRO SERVICES banner card (logo + tagline artwork)
-                      <Image
-                        source={require('@/assets/images/categories/adpro-card.webp')}
-                        style={StyleSheet.absoluteFill}
-                        contentFit="cover"
-                      />
-                    ) : cat.type === 'adguru' || cat.type === 'adread' ? (
-                      // The ADGURU / ADREAD cards are ready-made artwork (logo + tagline): show it whole.
-                      <Image
-                        source={
-                        cat.type === 'adguru'
-                          ? require('@/assets/images/adguru-card.png')
-                          : require('@/assets/images/adread-card.png')
-                      }
-                        style={StyleSheet.absoluteFill}
-                        contentFit="contain"
-                      />
-                    ) : (
-                      <>
-                        {/* Top Graphic Illustration Area */}
-                        <View style={styles.cardGraphicArea}>
-                          {renderCategoryGraphic(cat.type)}
-                        </View>
-
-                        {/* Category Name Badge */}
-                        <View style={styles.categoryBadge}>
-                          <Text style={[styles.categoryBadgeText, { color: cat.badgeTextColor }]}>
-                            {cat.name}
-                          </Text>
-                        </View>
-
-                        {/* Subtitle */}
-                        <Text style={styles.cardSubtitle} numberOfLines={1}>
-                          {cat.subtitle}
-                        </Text>
-                      </>
-                    )}
-                    {/* Lock overlay disabled for now:
-                    {!UNLOCKED_CATEGORIES.includes(cat.type) && (
-                      <LockedOverlay ping={lockPings[cat.id] ?? 0} />
-                    )}
-                    */}
-                  </HapticPressable>
-                </Animated.View>
-              ))}
-            </View>
-
-            {feed.status === 'loading' && (
-              <>
-                <SectionDivider />
-                <HomeSkeleton />
-              </>
-            )}
-            {feed.status === 'error' && (
-              <>
-                <SectionDivider />
-                <FeedError onRetry={feed.retry} />
-              </>
-            )}
-            {feed.status === 'ready' && (
-              <>
-              <SectionDivider />
-              <HomeShelf title="Explore market's fresh leaks" items={FRESH_LEAKS} />
-              <SectionDivider />
-              <HomeShelf title="Featured Listings" items={FEATURED_LISTINGS} />
-
-              <SectionDivider />
-              <BuiltForEveryone />
-              <SectionDivider />
-              <EventBanner />
-              <OpportunitiesSection />
-              <SectionDivider />
-              <GurusSection />
-              <SectionDivider />
-              <HappeningSection />
-              <SectionDivider />
-              <ComingUpSection />
-              <SectionDivider />
-              <SessionsSection />
-              <SectionDivider />
-              <JoinCta />
-              </>
-            )}
-          </View>
-        </Animated.ScrollView>
-
-        {/* Slim sticky bar (collapsed header) */}
-        <Animated.View
-          pointerEvents={compactOn ? 'auto' : 'none'}
-          style={[styles.compactBar, { paddingTop: Math.max(insets.top, 12) }, compactStyle]}>
-          <View style={styles.compactRow}>
-            <TouchableOpacity
-              onPress={openMenu}
-              activeOpacity={0.75}
-              accessibilityRole="button"
-              accessibilityLabel="Open menu"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={styles.compactIcon}>
-              <Ionicons name="menu" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
-            <View style={styles.compactBrand}>
-              <Image
-                source={require('@/assets/images/splash-logo-clean.png')}
-                style={styles.compactEmblem}
-                contentFit="contain"
-              />
-              <Text style={styles.compactBrandText}>ADSTREET</Text>
-            </View>
-            <TouchableOpacity
-              onPress={onOpenSearch}
-              activeOpacity={0.75}
-              accessibilityRole="button"
-              accessibilityLabel="Search"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={styles.compactIcon}>
-              <Ionicons name="search" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-
-        {/* Back to top */}
-        {topButtonOn && (
-          <Animated.View
-            entering={ZoomIn.duration(200)}
-            exiting={ZoomOut.duration(160)}
-            style={[styles.topButtonWrap, { bottom: Math.max(insets.bottom, 12) + 76 }]}>
-            <HapticPressable
-              haptic="none"
-              borderRadius={22}
-              onPress={scrollToTop}
-              accessibilityRole="button"
-              accessibilityLabel="Back to top"
-              style={styles.topButton}>
-              <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
-            </HapticPressable>
           </Animated.View>
-        )}
 
-        {/* 3. Floating Bottom Tab Bar with Liquid Glass */}
-        <View
-          pointerEvents="box-none"
-          style={[styles.floatingBarWrapper, { bottom: Math.max(insets.bottom, 12) }]}>
-          <LiquidTabBar active={activeTab} onChange={handleTabPress} />
+          {/* Back to top */}
+          {topButtonOn && (
+            <Animated.View
+              entering={ZoomIn.duration(200)}
+              exiting={ZoomOut.duration(160)}
+              style={[styles.topButtonWrap, { bottom: Math.max(insets.bottom, 12) + 76 }]}>
+              <HapticPressable
+                haptic="none"
+                borderRadius={22}
+                onPress={scrollToTop}
+                accessibilityRole="button"
+                accessibilityLabel="Back to top"
+                style={styles.topButton}>
+                <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
+              </HapticPressable>
+            </Animated.View>
+          )}
+
+          {/* Global Search Tab Screen (renders above Home feed, beneath floating tab bar) */}
+          {activeTab === 'search' && (
+            <View style={[StyleSheet.absoluteFill, styles.searchOverlay]}>
+              <GlobalSearchView
+                onOpenMenu={openMenu}
+                onOpenNotifications={() => {
+                  setActiveTab('notifications');
+                  onOpenNotifications?.();
+                }}
+                onPressJob={onPressJob}
+                onOpenAdBazaar={onOpenAdBazaar}
+                onPostJob={() => setActiveTab('add')}
+              />
+            </View>
+          )}
+
+          {/* Add a Job Post Flow (renders above Home feed when '+' tab is selected) */}
+          {activeTab === 'add' && (
+            <View style={[StyleSheet.absoluteFill, styles.searchOverlay]}>
+              <PostJobFlow
+                initialScreen={initialJobStep}
+                onClose={() => setActiveTab('home')}
+                onOpenMenu={openMenu}
+                onOpenSearch={() => setActiveTab('search')}
+                onOpenNotifications={() => {
+                  setActiveTab('notifications');
+                  onOpenNotifications?.();
+                }}
+              />
+            </View>
+          )}
         </View>
+
       </View>
       <HomeMenu
         visible={menuOpen}
@@ -742,436 +760,426 @@ export const HomeScreenView: React.FC<HomeScreenViewProps> = ({
 
 const createStyles = (t: AppTheme) =>
   StyleSheet.create({
-  rootContainer: {
-    flex: 1,
-    backgroundColor: t.canvas,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  compactBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#A81218',
-    paddingBottom: 10,
-    paddingHorizontal: 20,
-    zIndex: 20,
-    ...Shadows.floatingBar,
-  },
-  compactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 40,
-  },
-  compactIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  compactBrand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  compactEmblem: {
-    width: 22,
-    height: 22,
-  },
-  compactBrandText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 1.4,
-  },
-  topButtonWrap: {
-    position: 'absolute',
-    right: 20,
-    zIndex: 15,
-  },
-  topButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: t.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.buttonGlow,
-  },
-  headerContainer: {
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    ...Shadows.floatingBar,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  iconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radii.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    ...Shadows.card,
-  },
-  brandEmblem: {
-    width: 18,
-    height: 18,
-    marginRight: 6,
-  },
-  brandText: {
-    fontSize: 12.5,
-    fontWeight: '900',
-    color: '#0F172A',
-    letterSpacing: 1.2,
-  },
-  rightActionsGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 8,
-    right: 9,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
-  },
-  coinPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.22)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: Radii.pill,
-    paddingStart: 4,
-    paddingEnd: 10,
-    paddingVertical: 4,
-  },
-  coinIconWrapper: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#E31E24',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-  },
-  coinLetter: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  coinCount: {
-    color: '#FFFFFF',
-    fontSize: 12.5,
-    fontWeight: 'bold',
-  },
-  glowClip: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    overflow: 'hidden',
-  },
-  glowTopRight: {
-    position: 'absolute',
-    top: -70,
-    right: -60,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-  },
-  glowBottomLeft: {
-    position: 'absolute',
-    bottom: -90,
-    left: -70,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: 'rgba(0, 0, 0, 0.14)',
-  },
-  bannerCarouselContainer: {
-    marginTop: 18,
-    width: '100%',
-  },
-  bannerCardWrapper: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#0F172A',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  bannerImage: {
-    width: '100%',
-    height: '100%',
-  },
-  carouselPagination: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-    gap: 6,
-  },
-  paginationDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.45)',
-  },
-  activePaginationPill: {
-    width: 22,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
-  },
-  bodySection: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  sectionHeading: {
-    fontSize: 26,
-    lineHeight: 32,
-    color: t.text,
-    fontFamily: DisplayFont.bold,
-    letterSpacing: -0.2,
-    marginBottom: 12,
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  cardWrapper: {
-    width: CARD_WIDTH,
-    marginBottom: CARD_GAP,
-  },
-  sectionDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: t.divider,
-    marginTop: 10,
-    marginBottom: 18,
-  },
-  cardWrapperWide: {
-    width: '100%',
-    marginBottom: CARD_GAP,
-  },
-  categoryCardWide: {
-    width: '100%',
-    borderRadius: CARD_RADIUS,
-    overflow: 'hidden',
-    ...Shadows.card,
-  },
-  categoryCard: {
-    width: '100%',
-    borderRadius: CARD_RADIUS,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-    ...Shadows.card,
-  },
-  cardGraphicArea: {
-    flex: 1,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  categoryBadge: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-    ...Shadows.card,
-  },
-  categoryBadgeText: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  cardSubtitle: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.95)',
-    fontWeight: '500',
-    marginTop: 6,
-    textAlign: 'center',
-  },
+    rootContainer: {
+      flex: 1,
+      backgroundColor: t.canvas,
+    },
+    blurTarget: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+    },
+    compactBar: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: '#6C2326',
+      overflow: 'hidden',
+      paddingBottom: 10,
+      paddingHorizontal: 20,
+      zIndex: 20,
+      ...Shadows.floatingBar,
+    },
+    compactRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      height: 40,
+    },
+    compactIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: 'rgba(255, 255, 255, 0.16)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    compactBrand: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    compactEmblem: {
+      width: 22,
+      height: 22,
+    },
+    compactBrandText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '800',
+      letterSpacing: 1.4,
+    },
+    topButtonWrap: {
+      position: 'absolute',
+      right: 20,
+      zIndex: 15,
+    },
+    topButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: t.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...Shadows.buttonGlow,
+    },
+    headerContainer: {
+      borderBottomLeftRadius: 32,
+      borderBottomRightRadius: 32,
+      paddingHorizontal: 20,
+      paddingBottom: 20,
+      ...Shadows.floatingBar,
+    },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 8,
+    },
+    iconButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    hamburgerIcon: {
+      gap: 3.8,
+      alignItems: 'flex-start',
+    },
+    hamburgerBar: {
+      height: 1.75,
+      borderRadius: 1,
+      backgroundColor: '#FFFFFF',
+    },
+    brandBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      height: 30,
+      justifyContent: 'center',
+    },
+    brandPill: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: '#E31E24',
+      paddingStart: 22,
+      paddingEnd: 9,
+      height: 22,
+      marginStart: 13,
+      justifyContent: 'center',
+      ...Shadows.card,
+    },
+    brandEmblem: {
+      position: 'absolute',
+      start: 0,
+      width: 30,
+      height: 30,
+    },
+    brandText: {
+      fontSize: 11.5,
+      letterSpacing: 2.0,
+    },
+    brandTextAd: {
+      fontWeight: '700',
+      color: '#111827',
+    },
+    brandTextStreet: {
+      fontWeight: '500',
+      color: '#4B5563',
+    },
+    rightActionsGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    notificationDot: {
+      position: 'absolute',
+      top: 0,
+      start: 1,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#FFFFFF',
+    },
+    coinPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      height: 36,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      borderRadius: 14,
+      paddingStart: 9,
+      paddingEnd: 13,
+      gap: 7,
+    },
+    coinImage: {
+      width: 21,
+      height: 21,
+    },
+    coinCount: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    bannerCarouselContainer: {
+      marginTop: 18,
+      width: '100%',
+    },
+    bannerCardWrapper: {
+      borderRadius: 16,
+      overflow: 'hidden',
+      backgroundColor: '#0F172A',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    bannerImage: {
+      width: '100%',
+      height: '100%',
+    },
+    carouselPagination: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 10,
+      gap: 6,
+    },
+    paginationDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    },
+    activePaginationPill: {
+      width: 22,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: '#FFFFFF',
+    },
+    bodySection: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+    },
+    sectionHeading: {
+      fontSize: 26,
+      lineHeight: 32,
+      color: t.text,
+      fontFamily: DisplayFont.bold,
+      letterSpacing: -0.2,
+      marginBottom: 12,
+    },
+    gridContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    cardWrapper: {
+      width: CARD_WIDTH,
+      marginBottom: CARD_GAP,
+    },
+    sectionDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: t.divider,
+      marginTop: 10,
+      marginBottom: 18,
+    },
+    cardWrapperWide: {
+      width: '100%',
+      marginBottom: CARD_GAP,
+    },
+    categoryCardWide: {
+      width: '100%',
+      borderRadius: CARD_RADIUS,
+      overflow: 'hidden',
+      ...Shadows.card,
+    },
+    categoryCard: {
+      width: '100%',
+      borderRadius: CARD_RADIUS,
+      padding: 12,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      overflow: 'hidden',
+      ...Shadows.card,
+    },
+    cardGraphicArea: {
+      flex: 1,
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    categoryBadge: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 0.08)',
+      ...Shadows.card,
+    },
+    categoryBadgeText: {
+      fontSize: 11.5,
+      fontWeight: '800',
+      letterSpacing: 0.8,
+    },
+    cardSubtitle: {
+      fontSize: 11,
+      color: 'rgba(255, 255, 255, 0.95)',
+      fontWeight: '500',
+      marginTop: 6,
+      textAlign: 'center',
+    },
 
-  // Category Graphics
-  awningContainer: {
-    width: 90,
-    alignItems: 'center',
-  },
-  awningRoof: {
-    width: '100%',
-    height: 30,
-    flexDirection: 'row',
-    overflow: 'hidden',
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
-  },
-  awningStripe: {
-    flex: 1,
-    height: '100%',
-  },
-  awningScallops: {
-    width: '100%',
-    height: 8,
-    flexDirection: 'row',
-  },
-  scallopCircle: {
-    flex: 1,
-    height: 8,
-    borderBottomLeftRadius: 4,
-    borderBottomRightRadius: 4,
-  },
-  leakGraphicContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  leakMiniIcon: {
-    position: 'absolute',
-    bottom: -2,
-    right: -6,
-    backgroundColor: '#FFFFFF',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.card,
-  },
-  booksGraphicGrid: {
-    width: 90,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  iconChip: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  meetGraphicContainer: {
-    width: 110,
-    height: 38,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarCircle: {
-    position: 'absolute',
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guruGraphicContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  readGraphicContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    // Category Graphics
+    awningContainer: {
+      width: 90,
+      alignItems: 'center',
+    },
+    awningRoof: {
+      width: '100%',
+      height: 30,
+      flexDirection: 'row',
+      overflow: 'hidden',
+      borderTopLeftRadius: 6,
+      borderTopRightRadius: 6,
+    },
+    awningStripe: {
+      flex: 1,
+      height: '100%',
+    },
+    awningScallops: {
+      width: '100%',
+      height: 8,
+      flexDirection: 'row',
+    },
+    scallopCircle: {
+      flex: 1,
+      height: 8,
+      borderBottomLeftRadius: 4,
+      borderBottomRightRadius: 4,
+    },
+    leakGraphicContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+    },
+    leakMiniIcon: {
+      position: 'absolute',
+      bottom: -2,
+      right: -6,
+      backgroundColor: '#FFFFFF',
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...Shadows.card,
+    },
+    booksGraphicGrid: {
+      width: 90,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    iconChip: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    meetGraphicContainer: {
+      width: 110,
+      height: 38,
+      position: 'relative',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarCircle: {
+      position: 'absolute',
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      borderWidth: 1.5,
+      borderColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    guruGraphicContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    readGraphicContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  // Floating Bottom Tab Bar
-  floatingBarWrapper: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    alignItems: 'center',
-  },
-  glassBar: {
-    width: '100%',
-    maxWidth: 380,
-    borderWidth: 0.8,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-  },
-  tabBarInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    height: 60,
-    paddingHorizontal: 8,
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  inactiveTab: {
-    paddingHorizontal: 12,
-  },
-  activeHomePill: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radii.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 6,
-    ...Shadows.card,
-  },
-  activeHomeText: {
-    color: '#0F172A',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  centerAddButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#E31E24',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.45)',
-    ...Shadows.buttonGlow,
-  },
-});
+    // Floating Bottom Tab Bar
+    searchOverlay: {
+      zIndex: 25,
+    },
+    floatingBarWrapper: {
+      position: 'absolute',
+      left: 20,
+      right: 20,
+      alignItems: 'center',
+      zIndex: 30,
+    },
+    glassBar: {
+      width: '100%',
+      maxWidth: 380,
+      borderWidth: 0.8,
+      borderColor: 'rgba(255, 255, 255, 0.22)',
+    },
+    tabBarInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-around',
+      height: 60,
+      paddingHorizontal: 8,
+    },
+    tabItem: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    inactiveTab: {
+      paddingHorizontal: 12,
+    },
+    activeHomePill: {
+      flexDirection: 'row',
+      backgroundColor: '#FFFFFF',
+      borderRadius: Radii.pill,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      gap: 6,
+      ...Shadows.card,
+    },
+    activeHomeText: {
+      color: '#0F172A',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    centerAddButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: '#E31E24',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: 'rgba(255, 255, 255, 0.45)',
+      ...Shadows.buttonGlow,
+    },
+  });

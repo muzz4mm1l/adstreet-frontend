@@ -1,5 +1,5 @@
 import { useAppTheme } from '@/theme/useAppTheme';
-import React, { useEffect, useState } from 'react';
+import React, { createContext, useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
@@ -99,13 +99,18 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ visible, onClose, childr
 
         <GestureDetector gesture={pan}>
           <Animated.View style={[styles.panel, { width: panelW, backgroundColor: theme.surface }, panelStyle]}>
-            <View style={styles.panelClip}>{children}</View>
+            <View style={styles.panelClip}>
+              <DrawerGestureContext.Provider value={pan}>{children}</DrawerGestureContext.Provider>
+            </View>
           </Animated.View>
         </GestureDetector>
       </GestureHandlerRootView>
     </Modal>
   );
 };
+
+/** The drawer's own swipe-to-close gesture, so inner draggable controls can `block` it. */
+export const DrawerGestureContext = createContext<any>(undefined);
 
 const styles = StyleSheet.create({
   root: {

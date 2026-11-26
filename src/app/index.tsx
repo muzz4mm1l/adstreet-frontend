@@ -7,6 +7,17 @@ import { OnboardingScreenView } from '@/features/onboarding/OnboardingScreenView
 import { SignUpFlow } from '@/features/auth/SignUpFlow';
 import { HomeScreenView } from '@/features/home/HomeScreenView';
 import { AdBazaarScreenView } from '@/features/adbazaar/AdBazaarScreenView';
+import { AdBazaarCategoryScreenView } from '@/features/adbazaar/AdBazaarCategoryScreenView';
+import {
+  ADBAZAAR_QUICK_CATEGORIES,
+  AdBazaarQuickCategory,
+} from '@/features/adbazaar/adBazaarData';
+import { ApplyJobScreenView } from '@/features/adbazaar/ApplyJobScreenView';
+import { JobDetailsScreenView } from '@/features/adbazaar/JobDetailsScreenView';
+import { JobListing } from '@/features/adbazaar/PopularJobs';
+import type { HomeTab } from '@/features/home/LiquidTabBar';
+import { GlobalTabBar } from '@/components/navigation/FloatingTabBarOverlay';
+import { BlurTargetView } from 'expo-blur';
 
 type AppScreen = 'splash' | 'onboarding' | 'signup' | 'home';
 const APP_SCREENS: readonly AppScreen[] = ['splash', 'onboarding', 'signup', 'home'];
@@ -15,9 +26,23 @@ export default function AppEntry() {
   const theme = useAppTheme();
   // Dev-only deep link for fast UI inspection and the screenshot harness: /?screen=signup&step=5
   // (screen: splash | onboarding | signup | home, step: 1-12). Ignored outside __DEV__.
-  const params = useLocalSearchParams<{ screen?: string; step?: string; open?: string }>();
+  const params = useLocalSearchParams<{
+    screen?: string;
+    step?: string;
+    open?: string;
+    tab?: string;
+    jobStep?: string;
+  }>();
   const devScreen = __DEV__ ? APP_SCREENS.find((s) => s === params.screen) : undefined;
   const devStep = __DEV__ ? Number(params.step) : NaN;
+  const devJobStep =
+    __DEV__ &&
+    (params.jobStep === 'form' ||
+      params.jobStep === 'preview' ||
+      params.jobStep === 'listings' ||
+      params.jobStep === 'profile')
+      ? params.jobStep
+      : undefined;
   const initialScreen: AppScreen = devScreen ?? 'splash';
   const initialSignUpStep = (
     Number.isInteger(devStep) && devStep >= 1 && devStep <= 12 ? devStep : 11
@@ -27,8 +52,29 @@ export default function AppEntry() {
   // Category page shown on top of Home (Home stays mounted underneath, so back is a pure slide-off).
   // Dev deep link: /?screen=home&open=adbazaar
   const [openCategory, setOpenCategory] = useState<'adbazaar' | null>(
-    __DEV__ && params.open === 'adbazaar' ? 'adbazaar' : null,
+    __DEV__ && (params.open === 'adbazaar' || params.open === 'creators') ? 'adbazaar' : null,
   );
+  const [selectedBazaarCategory, setSelectedBazaarCategory] = useState<AdBazaarQuickCategory | null>(
+    __DEV__ && params.open === 'creators' ? ADBAZAAR_QUICK_CATEGORIES[0] : null,
+  );
+  const [selectedJob, setSelectedJob] = useState<JobListing | null>(null);
+  const [applyJob, setApplyJob] = useState<JobListing | null>(null);
+  // Floating tab bar tapped on an inner page: close every pushed page and show that Home tab.
+  const [homeTab, setHomeTab] = useState<HomeTab>(
+    __DEV__ && params.tab === 'search'
+      ? 'search'
+      : __DEV__ && params.tab === 'add'
+        ? 'add'
+        : 'home',
+  );
+  const blurTargetRef = useRef<React.ComponentRef<typeof View>>(null);
+  const goToHomeTab = (tab: HomeTab) => {
+    setApplyJob(null);
+    setSelectedJob(null);
+    setSelectedBazaarCategory(null);
+    setOpenCategory(null);
+    setHomeTab(tab);
+  };
   const [isSplashMounted, setIsSplashMounted] = useState(initialScreen === 'splash');
   const [isSplashMerging, setIsSplashMerging] = useState(false);
   const [hasCompletedSplash, setHasCompletedSplash] = useState(initialScreen !== 'splash');
@@ -79,6 +125,7 @@ export default function AppEntry() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.canvas }]}>
+      <BlurTargetView ref={blurTargetRef} style={StyleSheet.absoluteFill}>
       {/* 1. Base Onboarding Screen (Mounted during Splash for seamless zero-flicker background and blossom transition) */}
       {(currentScreen === 'onboarding' || isSplashMounted) && (
         <View style={StyleSheet.absoluteFill}>
@@ -119,6 +166,9 @@ export default function AppEntry() {
       {currentScreen === 'home' && (
         <View style={StyleSheet.absoluteFill}>
           <HomeScreenView
+            tab={homeTab}
+            initialJobStep={devJobStep}
+            onTabChange={setHomeTab}
             onBack={handleBackToSignup}
             renderPreviousScreen={() => (
               <SignUpFlow initialStep={initialSignUpStep} instantEntry />
@@ -128,6 +178,8 @@ export default function AppEntry() {
               if (cat.type === 'adbazaar') setOpenCategory('adbazaar');
               else console.log('Selected category:', cat.name);
             }}
+            onPressJob={(job) => setSelectedJob(job)}
+            onOpenAdBazaar={() => setOpenCategory('adbazaar')}
           />
         </View>
       )}
@@ -136,10 +188,78 @@ export default function AppEntry() {
       {currentScreen === 'home' && openCategory === 'adbazaar' && (
         <View style={StyleSheet.absoluteFill}>
           <AdBazaarScreenView
-            onBack={() => setOpenCategory(null)}
+            onBack={() => {
+              setSelectedBazaarCategory(null);
+              setSelectedJob(null);
+              setOpenCategory(null);
+            }}
+            onSelectCategory={(category) => setSelectedBazaarCategory(category)}
+            onPressJob={(job) => setSelectedJob(job)}
             renderPreviousScreen={() => <HomeScreenView />}
           />
         </View>
+      )}
+
+      {/* 5b. AdBazaar Category page (over AdBazaar, e.g. Content Creators) */}
+      {currentScreen === 'home' && openCategory === 'adbazaar' && selectedBazaarCategory && (
+        <View style={StyleSheet.absoluteFill}>
+          <AdBazaarCategoryScreenView
+            category={selectedBazaarCategory}
+            onBack={() => {
+              setSelectedJob(null);
+              setSelectedBazaarCategory(null);
+            }}
+            onPressJob={(job) => setSelectedJob(job)}
+            renderPreviousScreen={() => <AdBazaarScreenView onBack={() => {}} />}
+          />
+        </View>
+      )}
+
+      {/* 6. Job Details page (over AdBazaar Category, AdBazaar, or Home Global Search) */}
+      {currentScreen === 'home' && selectedJob && (
+        <View style={StyleSheet.absoluteFill}>
+          <JobDetailsScreenView
+            job={selectedJob}
+            onApply={(job) => setApplyJob(job)}
+            onBack={() => {
+              setApplyJob(null);
+              setSelectedJob(null);
+            }}
+            renderPreviousScreen={() =>
+              selectedBazaarCategory ? (
+                <AdBazaarCategoryScreenView
+                  category={selectedBazaarCategory}
+                  onBack={() => {}}
+                 
+                />
+              ) : openCategory === 'adbazaar' ? (
+                <AdBazaarScreenView onBack={() => {}} />
+              ) : (
+                <HomeScreenView initialTab="search" />
+              )
+            }
+          />
+        </View>
+      )}
+
+      {/* 7. Apply to this role (over Job Details) */}
+      {currentScreen === 'home' && selectedJob && applyJob && (
+        <View style={StyleSheet.absoluteFill}>
+          <ApplyJobScreenView
+            job={applyJob}
+            onBack={() => setApplyJob(null)}
+            renderPreviousScreen={() => (
+              <JobDetailsScreenView job={selectedJob} onBack={() => {}} />
+            )}
+          />
+        </View>
+      )}
+
+      </BlurTargetView>
+
+      {/* One floating tab bar for every page */}
+      {currentScreen === 'home' && (
+        <GlobalTabBar active={homeTab} onChange={goToHomeTab} androidBlurTarget={blurTargetRef} />
       )}
 
       {/* Dev helper pill for fast UI inspection */}

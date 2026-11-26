@@ -16,6 +16,17 @@ export interface JobListing {
   duration: string;
   budget: string;
   validTill: string;
+  validTillFull?: string;
+  postedAt?: string;
+  location?: string;
+  /** Compact budget label, e.g. "70k-80k". */
+  budgetShort?: string;
+  description?: string;
+  postedBy?: {
+    name: string;
+    role?: string;
+    avatar?: any;
+  };
   featured?: boolean;
   /** Artwork (require(...) or { uri }). A placeholder shows until provided. */
   image?: any;
@@ -32,6 +43,11 @@ export const POPULAR_JOBS: JobListing[] = [
     duration: '2 Month(s)',
     budget: 'PKR 80000',
     validTill: '12 February',
+    validTillFull: '12-February-2027',
+    postedAt: '12 February 2026',
+    description:
+      'Professional copywriting services for ads, websites, emails, and social media. Crafting compelling messages that convert and resonate with your audience.',
+    postedBy: { name: 'Maliha' },
     featured: true,
   },
   {
@@ -43,6 +59,11 @@ export const POPULAR_JOBS: JobListing[] = [
     duration: '1 Month(s)',
     budget: 'PKR 100000',
     validTill: '12 February',
+    validTillFull: '12-February-2027',
+    postedAt: '10 February 2026',
+    description:
+      'End-to-end mobile app and responsive website development with modern UI/UX, clean architecture, and smooth performance across iOS, Android, and web.',
+    postedBy: { name: 'Hamza Tariq' },
     featured: true,
   },
   {
@@ -54,6 +75,11 @@ export const POPULAR_JOBS: JobListing[] = [
     duration: '3 Week(s)',
     budget: 'PKR 55000',
     validTill: '20 February',
+    validTillFull: '20-February-2027',
+    postedAt: '14 February 2026',
+    description:
+      'Complete brand identity system including logo suite, typography guidelines, color palette, and social media launch templates tailored for a growing consumer brand.',
+    postedBy: { name: 'Zara Ahmed' },
   },
   {
     id: 'job-4',
@@ -64,6 +90,11 @@ export const POPULAR_JOBS: JobListing[] = [
     duration: '5 Day(s)',
     budget: 'PKR 35000',
     validTill: '28 February',
+    validTillFull: '28-February-2027',
+    postedAt: '15 February 2026',
+    description:
+      'Studio and lifestyle product photography for an upcoming skincare launch, including 20 retouched high-resolution hero shots and e-commerce cutouts.',
+    postedBy: { name: 'Saad Khan' },
   },
 ];
 
@@ -96,7 +127,14 @@ const JobCard: React.FC<{ job: JobListing; onPress: () => void }> = ({ job, onPr
   const styles = useThemedStyles(createStyles);
   const theme = useAppTheme();
   return (
-  <View style={styles.card}>
+  <HapticPressable
+    haptic="light"
+    scaleTo={0.985}
+    borderRadius={14}
+    onPress={onPress}
+    accessibilityRole="button"
+    accessibilityLabel={`View details for ${job.title}`}
+    style={styles.card}>
     <View style={styles.top}>
       <View style={styles.imageFrame}>
         {job.image ? (
@@ -154,17 +192,11 @@ const JobCard: React.FC<{ job: JobListing; onPress: () => void }> = ({ job, onPr
           <Text style={styles.footerValue}>{job.duration}</Text>
         </View>
       </View>
-      <HapticPressable
-        haptic="light"
-        borderRadius={8}
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={`Details for ${job.title}`}
-        style={styles.detailsButton}>
+      <View style={styles.detailsButton}>
         <Text style={styles.detailsText}>Details</Text>
-      </HapticPressable>
+      </View>
     </View>
-  </View>
+  </HapticPressable>
   );
 };
 
@@ -287,6 +319,7 @@ const createStyles = (t: AppTheme) =>
     color: t.text,
   },
   detailsButton: {
+    borderRadius: 8,
     backgroundColor: t.primary,
     paddingHorizontal: 22,
     paddingVertical: 9,

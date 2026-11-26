@@ -19,7 +19,9 @@ import { HapticPressable } from '@/components/ui/HapticPressable';
 import { AnimationPresets, BrandColors, Radii, Shadows } from '@/constants/theme';
 import { AppTheme } from '@/theme/colors';
 import { useAppTheme, useThemedStyles } from '@/theme/useAppTheme';
-import { ThemePreference, setThemePreference, useThemePreference } from '@/theme/themePreference';
+import { RegionSelector } from './RegionSelector';
+import { LiquidThemeSwitch } from '@/components/ui/LiquidThemeSwitch';
+import { setThemePreference } from '@/theme/themePreference';
 
 export type HomeMenuItem = 'settings' | 'account' | 'help';
 
@@ -77,7 +79,7 @@ export const HomeMenu: React.FC<HomeMenuProps> = ({
       <View
         style={[
           styles.content,
-          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 20 },
+          { paddingTop: insets.top + 24, paddingBottom: Math.max(insets.bottom, 16) + 28 },
         ]}>
         {/* Brand */}
         <Animated.View entering={enter(0)} style={styles.brandRow}>
@@ -148,6 +150,11 @@ export const HomeMenu: React.FC<HomeMenuProps> = ({
 
         <View style={styles.spacer} />
 
+        {/* Region */}
+        <Animated.View entering={enter(3)}>
+          <RegionSelector />
+        </Animated.View>
+
         {/* Appearance */}
         <Animated.View entering={enter(3)}>
           <ThemeSwitcher />
@@ -172,59 +179,16 @@ export const HomeMenu: React.FC<HomeMenuProps> = ({
   );
 };
 
-const THEME_OPTIONS: { id: ThemePreference; label: string; icon: IconName }[] = [
-  { id: 'system', label: 'System', icon: 'phone-portrait-outline' },
-  { id: 'light', label: 'Light', icon: 'sunny-outline' },
-  { id: 'dark', label: 'Dark', icon: 'moon-outline' },
-];
-
-/** Segmented System / Light / Dark control with a sliding selection pill. */
+/** Appearance row: label + the liquid-glass Light/Dark switch. */
 const ThemeSwitcher: React.FC = () => {
   const styles = useThemedStyles(createStyles);
   const theme = useAppTheme();
-  const reduceMotion = useReducedMotion();
-  const preference = useThemePreference();
-  const index = Math.max(0, THEME_OPTIONS.findIndex((o) => o.id === preference));
-  const [width, setWidth] = useState(0);
-  const segW = width > 0 ? (width - SWITCH_PAD * 2) / THEME_OPTIONS.length : 0;
-  const slide = useSharedValue(index);
-
-  useEffect(() => {
-    slide.value = reduceMotion ? index : withSpring(index, AnimationPresets.spring);
-  }, [index, reduceMotion, slide]);
-
-  const pillStyle = useAnimatedStyle(() => ({
-    width: segW,
-    transform: [{ translateX: slide.value * segW }],
-  }));
-
   return (
     <View style={styles.switcherBlock}>
-      <Text style={styles.switcherLabel}>Appearance</Text>
-      <View
-        accessibilityRole="radiogroup"
-        onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-        style={styles.switcher}>
-        {segW > 0 && <Animated.View style={[styles.switcherPill, pillStyle]} />}
-        {THEME_OPTIONS.map((o) => {
-          const selected = o.id === preference;
-          return (
-            <HapticPressable
-              key={o.id}
-              haptic="selection"
-              enableScaleAnimation={false}
-              borderRadius={Radii.sm}
-              onPress={() => setThemePreference(o.id)}
-              accessibilityRole="radio"
-              accessibilityLabel={`${o.label} appearance`}
-              accessibilityState={{ selected }}
-              style={styles.switcherItem}>
-              <Ionicons name={o.icon} size={15} color={selected ? theme.text : theme.textMuted} />
-              <Text style={[styles.switcherText, selected && styles.switcherTextOn]}>{o.label}</Text>
-            </HapticPressable>
-          );
-        })}
-      </View>
+      <LiquidThemeSwitch
+        dark={theme.scheme === 'dark'}
+        onChange={(dark) => setThemePreference(dark ? 'dark' : 'light')}
+      />
     </View>
   );
 };
@@ -326,47 +290,21 @@ const createStyles = (t: AppTheme) =>
     letterSpacing: -0.1,
   },
   switcherBlock: {
-    marginBottom: 12,
-    gap: 8,
-  },
-  switcherLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-    color: t.textMuted,
-    paddingStart: 4,
-  },
-  switcher: {
-    flexDirection: 'row',
-    padding: SWITCH_PAD,
-    borderRadius: Radii.md,
-    backgroundColor: t.surfaceAlt,
-  },
-  switcherPill: {
-    position: 'absolute',
-    top: SWITCH_PAD,
-    bottom: SWITCH_PAD,
-    left: SWITCH_PAD,
-    borderRadius: Radii.sm,
-    backgroundColor: t.surface,
-    ...Shadows.card,
-  },
-  switcherItem: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    height: 38,
+    justifyContent: 'flex-start',
+    marginBottom: 8,
+    paddingStart: 4,
   },
-  switcherText: {
-    fontSize: 12.5,
-    fontWeight: '500',
-    color: t.textMuted,
-  },
-  switcherTextOn: {
+  switcherLabel: {
+    fontSize: 15,
+    fontWeight: '600',
     color: t.text,
-    fontWeight: '700',
+  },
+  switcherHint: {
+    fontSize: 12,
+    color: t.textMuted,
+    marginTop: 2,
   },
   spacer: {
     flex: 1,
@@ -377,6 +315,9 @@ const createStyles = (t: AppTheme) =>
     gap: 10,
     minHeight: 48,
     paddingHorizontal: 14,
+    marginTop: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: t.border,
   },
   logoutText: {
     fontSize: 14,

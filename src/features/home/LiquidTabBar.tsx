@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
@@ -14,6 +15,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { BrandColors, Shadows } from '@/constants/theme';
+import { useAppTheme } from '@/theme/useAppTheme';
 
 export type HomeTab = 'home' | 'chat' | 'add' | 'notifications' | 'search';
 
@@ -56,15 +58,17 @@ const nearestRest = (p: number): number => {
 };
 
 const selectionHaptic = () => {
-  Haptics.selectionAsync().catch(() => {});
+  Haptics.selectionAsync().catch(() => { });
 };
 const lightHaptic = () => {
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
 };
 
 interface LiquidTabBarProps {
   active: HomeTab;
   onChange: (tab: HomeTab) => void;
+  /** Sibling background container ref for Android SDK 31+ hardware blur. */
+  androidBlurTarget?: React.RefObject<React.ComponentRef<typeof View> | null>;
 }
 
 /**
@@ -75,177 +79,231 @@ interface LiquidTabBarProps {
  * - A selection haptic ticks every time the lens crosses into another tab.
  * All motion runs on the UI thread (transform + opacity only).
  */
-export const LiquidTabBar: React.FC<LiquidTabBarProps> = ({ active, onChange }) => {
-  const { width: windowWidth } = useWindowDimensions();
-  const reduceMotion = useReducedMotion();
-  const spring = reduceMotion ? REDUCED_SPRING : LIQUID_SPRING;
+  export const LiquidTabBar: React.FC<LiquidTabBarProps> = ({
+    active,
+    onChange,
+    androidBlurTarget,
+  }) => {
+    const theme = useAppTheme();
+    const { width: windowWidth } = useWindowDimensions();
+    const reduceMotion = useReducedMotion();
+    const spring = reduceMotion ? REDUCED_SPRING : LIQUID_SPRING;
 
-  const barWidth = Math.min(windowWidth - 40, 380);
-  const slotW = (barWidth - PAD * 2) / TABS.length;
-  const lensW = slotW - 4;
+    const barWidth = Math.min(windowWidth - 40, 380);
+    const slotW = (barWidth - PAD * 2) / TABS.length;
+    const lensW = slotW - 4;
 
-  const activeIndex = TABS.findIndex((t) => t.id === active);
-  const restIndex = activeIndex === ADD_INDEX || activeIndex < 0 ? 0 : activeIndex;
+    const activeIndex = TABS.findIndex((t) => t.id === active);
+    const restIndex = activeIndex === ADD_INDEX || activeIndex < 0 ? 0 : activeIndex;
 
-  const pos = useSharedValue(restIndex); // lens position in slot units (float)
-  const target = useSharedValue(restIndex); // slot the lens is heading to / resting on
-  const lensVisible = useSharedValue(active === 'add' ? 0 : 1);
-  const pressed = useSharedValue(0);
-  const stretch = useSharedValue(0);
-  const addPressed = useSharedValue(0);
-  const dragging = useSharedValue(0);
-  const startPos = useSharedValue(0);
-  const startX = useSharedValue(0);
-  const lastHaptic = useSharedValue(restIndex);
+    const pos = useSharedValue(restIndex); // lens position in slot units (float)
+    const target = useSharedValue(restIndex); // slot the lens is heading to / resting on
+    const lensVisible = useSharedValue(active === 'add' ? 0 : 1);
+    const pressed = useSharedValue(0);
+    const stretch = useSharedValue(0);
+    const addPressed = useSharedValue(0);
+    const dragging = useSharedValue(0);
+    const startPos = useSharedValue(0);
+    const startX = useSharedValue(0);
+    const lastHaptic = useSharedValue(restIndex);
 
-  // Follow external changes (hardware back returning to Home, ...)
-  useEffect(() => {
-    lensVisible.value = withTiming(active === 'add' ? 0 : 1, { duration: 160 });
-    if (active !== 'add' && target.value !== restIndex && dragging.value === 0) {
-      target.value = restIndex;
-      lastHaptic.value = restIndex;
-      pos.value = withSpring(restIndex, spring);
-    }
-  }, [active, restIndex, spring, pos, target, lensVisible, dragging, lastHaptic]);
+    // Follow external changes (hardware back returning to Home, ...)
+    useEffect(() => {
+      lensVisible.value = withTiming(active === 'add' ? 0 : 1, { duration: 160 });
+      if (active !== 'add' && target.value !== restIndex && dragging.value === 0) {
+        target.value = restIndex;
+        lastHaptic.value = restIndex;
+        pos.value = withSpring(restIndex, spring);
+      }
+    }, [active, restIndex, spring, pos, target, lensVisible, dragging, lastHaptic]);
 
-  const commit = useCallback(
-    (index: number) => {
-      onChange(TABS[index].id);
-    },
-    [onChange],
-  );
+    const commit = useCallback(
+      (index: number) => {
+        onChange(TABS[index].id);
+      },
+      [onChange],
+    );
 
-  const pan = usePanGesture({
-    activeOffsetX: [-6, 6],
-    failOffsetY: [-28, 28],
-    onBegin: (e) => {
-      'worklet';
-      startX.value = e.x;
-      startPos.value = pos.value;
-      dragging.value = 0;
-      const slot = Math.floor((e.x - PAD) / slotW);
-      if (slot === ADD_INDEX) {
-        addPressed.value = withSpring(1, { damping: 18, stiffness: 400 });
-      } else {
+    const pan = usePanGesture({
+      activeOffsetX: [-6, 6],
+      failOffsetY: [-28, 28],
+      onBegin: (e) => {
+        'worklet';
+        startX.value = e.x;
+        startPos.value = pos.value;
+        dragging.value = 0;
+        const slot = Math.floor((e.x - PAD) / slotW);
+        if (slot === ADD_INDEX) {
+          addPressed.value = withSpring(1, { damping: 18, stiffness: 400 });
+        } else {
+          pressed.value = withSpring(1, { damping: 14, stiffness: 300 });
+        }
+      },
+      onActivate: () => {
+        'worklet';
+        dragging.value = 1;
+        addPressed.value = withSpring(0, { damping: 18, stiffness: 400 });
         pressed.value = withSpring(1, { damping: 14, stiffness: 300 });
-      }
-    },
-    onActivate: () => {
-      'worklet';
-      dragging.value = 1;
-      addPressed.value = withSpring(0, { damping: 18, stiffness: 400 });
-      pressed.value = withSpring(1, { damping: 14, stiffness: 300 });
-      lensVisible.value = withTiming(1, { duration: 120 });
-    },
-    onUpdate: (e) => {
-      'worklet';
-      let p = startPos.value + e.translationX / slotW;
-      // rubber band beyond the first / last slot
-      if (p < 0) p = p * 0.3;
-      else if (p > 4) p = 4 + (p - 4) * 0.3;
-      pos.value = p;
-      stretch.value = Math.min(Math.abs(e.velocityX) / 3200, 0.28);
-      const idx = nearestRest(p);
-      if (idx !== lastHaptic.value) {
+        lensVisible.value = withTiming(1, { duration: 120 });
+      },
+      onUpdate: (e) => {
+        'worklet';
+        let p = startPos.value + e.translationX / slotW;
+        // rubber band beyond the first / last slot
+        if (p < 0) p = p * 0.3;
+        else if (p > 4) p = 4 + (p - 4) * 0.3;
+        pos.value = p;
+        stretch.value = Math.min(Math.abs(e.velocityX) / 3200, 0.28);
+        const idx = nearestRest(p);
+        if (idx !== lastHaptic.value) {
+          lastHaptic.value = idx;
+          scheduleOnRN(selectionHaptic);
+        }
+      },
+      onDeactivate: (e) => {
+        'worklet';
+        // a flick carries the lens at most one extra slot
+        const carry = Math.min(Math.max((e.velocityX / slotW) * 0.04, -1), 1);
+        const projected = pos.value + carry;
+        const idx = nearestRest(Math.min(Math.max(projected, 0), 4));
+        stretch.value = withSpring(0, { damping: 12, stiffness: 260 });
+        pressed.value = withSpring(0, { damping: 14, stiffness: 240 });
+        pos.value = withSpring(idx, { ...spring, velocity: e.velocityX / slotW });
+        target.value = idx;
         lastHaptic.value = idx;
-        scheduleOnRN(selectionHaptic);
-      }
-    },
-    onDeactivate: (e) => {
-      'worklet';
-      // a flick carries the lens at most one extra slot
-      const carry = Math.min(Math.max((e.velocityX / slotW) * 0.04, -1), 1);
-      const projected = pos.value + carry;
-      const idx = nearestRest(Math.min(Math.max(projected, 0), 4));
-      stretch.value = withSpring(0, { damping: 12, stiffness: 260 });
-      pressed.value = withSpring(0, { damping: 14, stiffness: 240 });
-      pos.value = withSpring(idx, { ...spring, velocity: e.velocityX / slotW });
-      target.value = idx;
-      lastHaptic.value = idx;
-      scheduleOnRN(commit, idx);
-    },
-    onFinalize: () => {
-      'worklet';
-      if (dragging.value === 1) {
-        dragging.value = 0; // drag already handled in onDeactivate
-        return;
-      }
-      // plain tap: the touch never became a drag
-      const slot = Math.min(Math.max(Math.floor((startX.value - PAD) / slotW), 0), 4);
-      pressed.value = withSpring(0, { damping: 14, stiffness: 240 });
-      addPressed.value = withSpring(0, { damping: 12, stiffness: 300 });
-      if (slot === ADD_INDEX) {
-        scheduleOnRN(lightHaptic);
-      } else {
-        target.value = slot;
-        lastHaptic.value = slot;
-        pos.value = withSpring(slot, spring);
-        scheduleOnRN(selectionHaptic);
-      }
-      scheduleOnRN(commit, slot);
-    },
-  });
+        scheduleOnRN(commit, idx);
+      },
+      onFinalize: () => {
+        'worklet';
+        if (dragging.value === 1) {
+          dragging.value = 0; // drag already handled in onDeactivate
+          return;
+        }
+        // plain tap: the touch never became a drag
+        const slot = Math.min(Math.max(Math.floor((startX.value - PAD) / slotW), 0), 4);
+        pressed.value = withSpring(0, { damping: 14, stiffness: 240 });
+        addPressed.value = withSpring(0, { damping: 12, stiffness: 300 });
+        if (slot === ADD_INDEX) {
+          scheduleOnRN(lightHaptic);
+        } else {
+          target.value = slot;
+          lastHaptic.value = slot;
+          pos.value = withSpring(slot, spring);
+          scheduleOnRN(selectionHaptic);
+        }
+        scheduleOnRN(commit, slot);
+      },
+    });
 
-  const barStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + pressed.value * 0.018 }],
-  }));
+    const barStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: 1 + pressed.value * 0.018 }],
+    }));
 
-  const lensStyle = useAnimatedStyle(() => {
-    const inflate = 1 + pressed.value * 0.1;
-    return {
-      opacity: lensVisible.value * (0.96 - pressed.value * 0.14),
-      transform: [
-        { translateX: PAD + pos.value * slotW + (slotW - lensW) / 2 },
-        { scaleX: inflate * (1 + stretch.value) },
-        { scaleY: inflate * (1 - stretch.value * 0.5) },
-      ],
-    };
-  });
+    const lensStyle = useAnimatedStyle(() => {
+      const inflate = 1 + pressed.value * 0.1;
+      return {
+        opacity: lensVisible.value * (0.96 - pressed.value * 0.14),
+        transform: [
+          { translateX: PAD + pos.value * slotW + (slotW - lensW) / 2 },
+          { scaleX: inflate * (1 + stretch.value) },
+          { scaleY: inflate * (1 - stretch.value * 0.5) },
+        ],
+      };
+    });
 
-  const addStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 - addPressed.value * 0.12 }],
-  }));
+    const addStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: 1 - addPressed.value * 0.12 }],
+    }));
 
-  return (
-    <GestureDetector gesture={pan}>
-      <Animated.View style={[{ width: barWidth }, barStyle]}>
+    const barContent = (
+      <View style={styles.inner}>
+        {/* the glass lens that travels under the active tab */}
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.lens, { width: lensW, left: 0 }, lensStyle]}
+        />
+
+        {TABS.map((tab, i) => (
+          <View
+            key={tab.id}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={tab.label}
+            accessibilityState={{ selected: active === tab.id }}
+            onAccessibilityTap={() => commit(i)}
+            pointerEvents="none"
+            style={[styles.slot, { left: PAD + i * slotW, width: slotW }]}>
+            {tab.id === 'add' ? (
+              <Animated.View style={[styles.addButton, addStyle]}>
+                <Ionicons name="add" size={24} color="#FFFFFF" />
+              </Animated.View>
+            ) : (
+              <TabIcon tab={tab} index={i} pos={pos} visible={lensVisible} />
+            )}
+          </View>
+        ))}
+      </View>
+    );
+
+    const isDark = theme.scheme === 'dark';
+    const supportsAndroidBlur =
+      Platform.OS === 'android' &&
+      typeof Platform.Version === 'number' &&
+      Platform.Version >= 31 &&
+      Boolean(androidBlurTarget);
+
+    return (
+      <GestureDetector gesture={pan}>
+        <Animated.View style={[{ width: barWidth }, barStyle]}>
+                {
+                  Platform.OS === 'android' ? (
+                    supportsAndroidBlur ? (
+                      <BlurView
+                        blurTarget={androidBlurTarget}
+                        blurMethod="dimezisBlurViewSdk31Plus"
+                        tint={isDark ? 'dark' : 'light'}
+                        intensity={24}
+                        blurReductionFactor={4}
+                        style={[
+                          styles.androidGlassBar,
+                          isDark ? styles.androidBarDark : styles.androidBarLight,
+                        ]}>
+                        <View
+                          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor: isDark
+                ? 'rgba(58, 58, 58, 0.36)'
+                : 'rgba(58, 58, 58, 0.20)',
+            },
+          ]}
+              />
+          {barContent}
+        </BlurView>
+        ) : (
+        <View
+          style={[
+            styles.androidGlassBar,
+            isDark ? styles.androidFallbackDark : styles.androidFallbackLight,
+          ]}>
+          {barContent}
+        </View>
+        )
+        ) : (
         <GlassSurface
           borderRadius={999}
           intensity={65}
           tint={Platform.OS === 'ios' ? 'systemChromeMaterialDark' : 'dark'}
           fallbackColor="rgba(30, 30, 32, 0.88)"
           elevation={12}
+          colorScheme="dark"
           style={styles.glassBar}>
-          <View style={styles.inner}>
-            {/* the glass lens that travels under the active tab */}
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.lens, { width: lensW, left: 0 }, lensStyle]}
-            />
-
-            {TABS.map((tab, i) => (
-              <View
-                key={tab.id}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={tab.label}
-                accessibilityState={{ selected: active === tab.id }}
-                onAccessibilityTap={() => commit(i)}
-                pointerEvents="none"
-                style={[styles.slot, { left: PAD + i * slotW, width: slotW }]}>
-                {tab.id === 'add' ? (
-                  <Animated.View style={[styles.addButton, addStyle]}>
-                    <Ionicons name="add" size={24} color="#FFFFFF" />
-                  </Animated.View>
-                ) : (
-                  <TabIcon tab={tab} index={i} pos={pos} visible={lensVisible} />
-                )}
-              </View>
-            ))}
-          </View>
+          {barContent}
         </GlassSurface>
+        )}
       </Animated.View>
-    </GestureDetector>
+    </GestureDetector >
   );
 };
 
@@ -281,6 +339,28 @@ const styles = StyleSheet.create({
     width: '100%',
     borderWidth: 0.8,
     borderColor: 'rgba(255, 255, 255, 0.22)',
+  },
+  androidGlassBar: {
+    width: '100%',
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  androidBarLight: {
+    borderColor: 'rgba(255, 255, 255, 0.42)',
+  },
+  androidBarDark: {
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  androidFallbackLight: {
+    backgroundColor: 'rgba(196, 192, 192, 0.84)',
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+    elevation: 4,
+  },
+  androidFallbackDark: {
+    backgroundColor: 'rgba(64, 64, 68, 0.86)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    elevation: 4,
   },
   inner: {
     height: BAR_HEIGHT,

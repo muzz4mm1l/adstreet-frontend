@@ -25,6 +25,8 @@ export interface GlassSurfaceProps {
   tint?: BlurTint;
   fallbackColor?: string;
   elevation?: number;
+  /** Pin the native glass to a scheme instead of following the system (e.g. always-dark chrome). */
+  colorScheme?: 'auto' | 'light' | 'dark';
 }
 
 /**
@@ -43,6 +45,7 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
   tint = Platform.OS === 'ios' ? ('systemChromeMaterialLight' as BlurTint) : 'light',
   fallbackColor = 'rgba(255, 255, 255, 0.92)',
   elevation = 6,
+  colorScheme = 'auto',
 }) => {
   const [reduceTransparency, setReduceTransparency] = useState(false);
 
@@ -90,7 +93,9 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
         style={[
           styles.solidFallback,
           containerStyle,
-          { backgroundColor: SurfaceColors.card, borderColor: SurfaceColors.borderHairline },
+          colorScheme === 'dark'
+            ? { backgroundColor: fallbackColor, borderColor: 'rgba(255, 255, 255, 0.22)' }
+            : { backgroundColor: SurfaceColors.card, borderColor: SurfaceColors.borderHairline },
           style,
         ]}>
         {children}
@@ -109,6 +114,7 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
       return (
         <GlassView
           glassEffectStyle={glassStyle}
+          colorScheme={colorScheme}
           style={[styles.glassView, containerStyle, style]}>
           {children}
         </GlassView>

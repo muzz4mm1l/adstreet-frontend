@@ -139,155 +139,167 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
         )}
       />
 
-      <View style={styles.pagination}>
-        {banners.map((banner, i) => (
-          <Dot
-            key={banner.id}
-            index={i}
-            step={step}
-            scrollX={scrollX}
-            progress={progress}
-            active={index === i}
-            onPress={() => {
-              Haptics.selectionAsync().catch(() => {});
-              goTo(i);
-            }}
-          />
-        ))}
+        <View style={styles.paginationWrap}>
+          <View style={styles.paginationPill}>
+            {banners.map((banner, i) => (
+              <Dot
+                key={banner.id}
+                index={i}
+                step={step}
+                scrollX={scrollX}
+                progress={progress}
+                active={index === i}
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => { });
+                  goTo(i);
+                }}
+              />
+            ))}
+          </View>
+        </View>
       </View>
-    </View>
-  );
+      );
 };
 
-interface BannerCardProps {
-  banner: BannerItemData;
-  index: number;
-  width: number;
-  height: number;
-  step: number;
-  scrollX: SharedValue<number>;
-  flat: boolean;
+      interface BannerCardProps {
+        banner: BannerItemData;
+      index: number;
+      width: number;
+      height: number;
+      step: number;
+      scrollX: SharedValue<number>;
+        flat: boolean;
   onPress: () => void;
 }
 
-const BannerCard: React.FC<BannerCardProps> = ({
-  banner,
-  index,
-  width,
-  height,
-  step,
-  scrollX,
-  flat,
-  onPress,
+        const BannerCard: React.FC<BannerCardProps> = ({
+          banner,
+          index,
+          width,
+          height,
+          step,
+          scrollX,
+          flat,
+          onPress,
 }) => {
   const input = [(index - 1) * step, index * step, (index + 1) * step];
 
   const frameStyle = useAnimatedStyle(() => {
-    if (flat) return {};
-    const x = scrollX.value;
-    return { opacity: interpolate(x, input, [0, 1, 0], Extrapolation.CLAMP) };
+    if (flat) return { };
+          const x = scrollX.value;
+          return {opacity: interpolate(x, input, [0, 1, 0], Extrapolation.CLAMP) };
   });
 
-  return (
-    <Animated.View style={[{ width, height }, frameStyle]}>
-      <HapticPressable
-        haptic="light"
-        scaleTo={0.97}
-        borderRadius={18}
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={`${banner.title} banner`}
-        style={styles.card}>
-        <View style={styles.imageWrap}>
-          <Image source={banner.source} style={styles.image} contentFit="contain" transition={200} />
-        </View>
+          return (
+          <Animated.View style={[{ width, height }, frameStyle]}>
+            <HapticPressable
+              haptic="light"
+              scaleTo={0.97}
+              borderRadius={18}
+              onPress={onPress}
+              accessibilityRole="button"
+              accessibilityLabel={`${banner.title} banner`}
+              style={styles.card}>
+              <View style={styles.imageWrap}>
+                <Image source={banner.source} style={styles.image} contentFit="contain" transition={200} />
+              </View>
 
-      </HapticPressable>
-    </Animated.View>
-  );
+            </HapticPressable>
+          </Animated.View>
+          );
 };
 
-interface DotProps {
-  index: number;
-  step: number;
-  scrollX: SharedValue<number>;
-  progress: SharedValue<number>;
-  active: boolean;
+          interface DotProps {
+            index: number;
+          step: number;
+          scrollX: SharedValue<number>;
+            progress: SharedValue<number>;
+              active: boolean;
   onPress: () => void;
 }
 
-const Dot: React.FC<DotProps> = ({ index, step, scrollX, progress, active, onPress }) => {
+              const Dot: React.FC<DotProps> = ({index, step, scrollX, progress, active, onPress}) => {
   const trackStyle = useAnimatedStyle(() => ({
-    width: interpolate(
-      scrollX.value,
-      [(index - 1) * step, index * step, (index + 1) * step],
-      [6, 28, 6],
-      Extrapolation.CLAMP,
-    ),
+                  width: interpolate(
+                scrollX.value,
+                [(index - 1) * step, index * step, (index + 1) * step],
+                [7, 22, 7],
+                Extrapolation.CLAMP,
+                ),
   }));
   const fillStyle = useAnimatedStyle(() => ({
-    width: active ? `${progress.value * 100}%` : '0%',
+                  width: active ? `${progress.value * 100}%` : '0%',
   }));
 
-  return (
-    <HapticPressable
-      haptic="none"
-      scaleTo={1}
-      onPress={onPress}
-      hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
-      accessibilityRole="button"
-      accessibilityLabel={`Show banner ${index + 1}`}>
-      <Animated.View style={[styles.dotTrack, trackStyle]}>
-        <Animated.View style={[styles.dotFill, fillStyle]} />
-      </Animated.View>
-    </HapticPressable>
-  );
+                return (
+                <HapticPressable
+                  haptic="none"
+                  scaleTo={1}
+                  onPress={onPress}
+                  hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Show banner ${index + 1}`}>
+                  <Animated.View style={[styles.dotTrack, trackStyle]}>
+                    <Animated.View style={[styles.dotFill, fillStyle]} />
+                  </Animated.View>
+                </HapticPressable>
+                );
 };
 
-const styles = StyleSheet.create({
-  // bleed to the screen edges so the pager snaps edge to edge
-  root: {
-    marginTop: 18,
-    marginHorizontal: -20,
+                const styles = StyleSheet.create({
+                  // bleed to the screen edges so the pager snaps edge to edge
+                  root: {
+                  marginTop: 18,
+                marginHorizontal: -20,
   },
-  card: {
-    flex: 1,
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: '#0F172A',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.32,
-    shadowRadius: 14,
-    elevation: 8,
+                card: {
+                  flex: 1,
+                borderRadius: 18,
+                overflow: 'hidden',
+                backgroundColor: '#0F172A',
+                shadowColor: '#000000',
+                shadowOffset: {width: 0, height: 8 },
+                shadowOpacity: 0.32,
+                shadowRadius: 14,
+                elevation: 8,
   },
-  imageWrap: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
+                imageWrap: {
+                  position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0,
   },
-  image: {
-    width: '100%',
-    height: '100%',
+                image: {
+                  width: '100%',
+                height: '100%',
   },
-  pagination: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 12,
+                paginationWrap: {
+                  alignItems: 'center',
+                justifyContent: 'center',
+                marginTop: 12,
   },
-  dotTrack: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+                paginationPill: {
+                  flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 7,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 999,
+                backgroundColor: 'rgba(255, 255, 255, 0.14)',
+                borderWidth: 0.75,
+                borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  dotFill: {
-    height: '100%',
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
+                dotTrack: {
+                height: 7,
+                borderRadius: 3.5,
+                overflow: 'hidden',
+                backgroundColor: 'rgba(255, 255, 255, 0.32)',
+  },
+                dotFill: {
+                  height: '100%',
+                borderRadius: 3.5,
+                backgroundColor: '#FFFFFF',
   },
 });
